@@ -1,62 +1,53 @@
 package main
 
 import (
-    "context"
-    "fmt"
-    "io"
-    "time"
     "flag"
+    "net/http"
 
-     pb "github.com/spacemeshos/dash-backend/api/proto/spacemesh"
-    "google.golang.org/grpc"
-//    "google.golang.org/grpc/grpclog"
-    "github.com/golang/protobuf/ptypes/empty"
+    "github.com/spacemeshos/go-spacemesh/log"
+
+//    "github.com/spacemeshos/dash-backend/api"
 )
 
 var (
     version string
     commit  string
     branch  string
+
+    nodeAddress = flag.String("node", "localhost:9990", "api node address")
+    wsAddr = flag.String("ws", ":8080", "http service address")
 )
 
-func syncWithNode(nodeClient pb.NodeServiceClient) {
-    var protoReq empty.Empty
-
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    stream, err := nodeClient.SyncStatusStream(ctx, &protoReq)
-    if err != nil {
-        fmt.Println("cannot get sync status stream: ", err)
-        return
-    }
-
-    for {
-        res, err := stream.Recv()
-        if err == io.EOF {
-            return
-        }
-        if err != nil {
-            fmt.Println("cannot receive sync status: ", err)
-            return
-        }
-
-        fmt.Println("Node sync status: ", res.GetStatus())
-    }
-}
-
 func main() {
-    nodeAddress := flag.String("address", "", "the node address")
     flag.Parse()
-    fmt.Println("dial node %s", *nodeAddress)
 
-    conn, err := grpc.Dial(*nodeAddress, grpc.WithInsecure())
-    if err != nil {
-        fmt.Println("cannot dial node: ", err)
-        return
+    log.InitSpacemeshLoggingSystem("", "spacemesh-dashboard.log")
+
+    bus := newBus()
+    go bus.run()
+
+    history := NewHistory(bus)
+
+    m := Message{
+        "TESTNET 0.1", 1, 2, 3, 4, 5,
+        []Geo{{"1",[2]float64{1,1}}, {"2",[2]float64{2,2}}},
+        []Point{{1,1}, {2,1}, {3,1}},
+        []Point{{1,2}, {2,2}, {3,2}},
+        []Point{{1,3}, {2,3}, {3,3}},
+        []Point{{1,4}, {2,4}, {3,4}},
+        []Point{{1,5}, {2,5}, {3,5}},
+        []Point{{1,6}, {2,6}, {3,6}},
     }
+    history.push(&m)
 
-    nodeClient := pb.NewNodeServiceClient(conn)
+    collector := NewCollector(*nodeAddress, history)
+    go collector.Run()
 
-    syncWithNode(nodeClient)
+    http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+        serveWs(bus, w, r)
+    })
+    err := http.ListenAndServe(*wsAddr, nil)
+    if err != nil {
+        log.Error("ListenAndServe: ", err)
+    }
 }
