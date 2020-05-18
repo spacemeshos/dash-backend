@@ -144,8 +144,8 @@ func (s *State) initEmptyMock() {
 }
 
 func (s *State) initMock(prev *State) {
-    s.capacity     = prev.capacity + uint64(randUint(0, 100))
-    s.decentral    = prev.decentral + uint64(randUint(0, 100))
+    s.capacity     = uint64(randUint(0, 100))
+    s.decentral    = uint64(randUint(0, 100))
     s.smeshers     = prev.smeshers + uint64(randUint(0, 100))
     s.transactions = prev.transactions + uint64(randUint(0, 100))
     s.accounts     = prev.accounts + uint64(randUint(0, 100))
