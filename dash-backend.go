@@ -3,6 +3,8 @@ package main
 import (
     "flag"
     "net/http"
+    "math/rand"
+    "time"
 
     "github.com/spacemeshos/go-spacemesh/log"
 
@@ -16,9 +18,12 @@ var (
 
     nodeAddress = flag.String("node", "localhost:9990", "api node address")
     wsAddr = flag.String("ws", ":8080", "http service address")
+    mock = flag.Bool("mock", false, "mock mode")
 )
 
 func main() {
+    rand.Seed(time.Now().UTC().UnixNano())
+
     flag.Parse()
 
     log.InitSpacemeshLoggingSystem("", "spacemesh-dashboard.log")
@@ -27,21 +32,16 @@ func main() {
     go bus.run()
 
     history := NewHistory(bus)
-
-    m := Message{
-        "TESTNET 0.1", 1, 2, 3, 4, 5,
-        []Geo{{"1",[2]float64{1,1}}, {"2",[2]float64{2,2}}},
-        []Point{{1,1}, {2,1}, {3,1}},
-        []Point{{1,2}, {2,2}, {3,2}},
-        []Point{{1,3}, {2,3}, {3,3}},
-        []Point{{1,4}, {2,4}, {3,4}},
-        []Point{{1,5}, {2,5}, {3,5}},
-        []Point{{1,6}, {2,6}, {3,6}},
+    if *mock {
+        go history.RunMock()
+    } else {
+        go history.Run()
     }
-    history.push(&m)
 
-    collector := NewCollector(*nodeAddress, history)
-    go collector.Run()
+    if !*mock {
+        collector := NewCollector(*nodeAddress, history)
+        go collector.Run()
+    }
 
     http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
         serveWs(bus, w, r)
