@@ -1,4 +1,4 @@
-package main
+package client
 
 // Hub maintains the set of active clients and broadcasts states to the
 // clients.
@@ -7,42 +7,42 @@ type Bus struct {
     clients map[*Client]bool
 
     // State changed.
-    notify chan []byte
+    Notify chan []byte
 
     // Register requests from the clients.
-    register chan *Client
+    Register chan *Client
 
     // Unregister requests from clients.
-    unregister chan *Client
+    Unregister chan *Client
 
     // Last state
     state []byte
 }
 
-func newBus() *Bus {
+func NewBus() *Bus {
     return &Bus{
-        notify:     make(chan []byte),
-        register:   make(chan *Client),
-        unregister: make(chan *Client),
+        Notify:     make(chan []byte),
+        Register:   make(chan *Client),
+        Unregister: make(chan *Client),
         clients:    make(map[*Client]bool),
         state:      nil,
     }
 }
 
-func (bus *Bus) run() {
+func (bus *Bus) Run() {
     for {
         select {
-        case client := <-bus.register:
+        case client := <-bus.Register:
             bus.clients[client] = true
             if bus.state != nil {
               client.send <- bus.state
             }
-        case client := <-bus.unregister:
+        case client := <-bus.Unregister:
             if _, ok := bus.clients[client]; ok {
                 delete(bus.clients, client)
                 close(client.send)
             }
-        case bus.state = <-bus.notify:
+        case bus.state = <-bus.Notify:
             for client := range bus.clients {
                 select {
                 case client.send <- bus.state:

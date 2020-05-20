@@ -9,6 +9,10 @@ import (
     "github.com/spacemeshos/go-spacemesh/log"
 
 //    "github.com/spacemeshos/dash-backend/api"
+
+    "github.com/spacemeshos/dash-backend/client"
+    "github.com/spacemeshos/dash-backend/collector"
+    "github.com/spacemeshos/dash-backend/history"
 )
 
 var (
@@ -28,10 +32,10 @@ func main() {
 
     log.InitSpacemeshLoggingSystem("", "spacemesh-dashboard.log")
 
-    bus := newBus()
-    go bus.run()
+    bus := client.NewBus()
+    go bus.Run()
 
-    history := NewHistory(bus)
+    history := history.NewHistory(bus)
     if *mock {
         go history.RunMock()
     } else {
@@ -39,12 +43,12 @@ func main() {
     }
 
     if !*mock {
-        collector := NewCollector(*nodeAddress, history)
+        collector := collector.NewCollector(*nodeAddress, history)
         go collector.Run()
     }
 
     http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-        serveWs(bus, w, r)
+        client.ServeWs(bus, w, r)
     })
     err := http.ListenAndServe(*wsAddr, nil)
     if err != nil {

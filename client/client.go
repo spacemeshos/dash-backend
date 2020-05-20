@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 //    "bytes"
@@ -48,7 +48,7 @@ type Client struct {
 func (c *Client) readPump() {
     log.Info("Start client read pump")
     defer func() {
-        c.bus.unregister <- c
+        c.bus.Unregister <- c
         c.conn.Close()
         log.Info("Stop client read pump")
     }()
@@ -94,14 +94,7 @@ func (c *Client) writePump() {
                 return
             }
             w.Write(message)
-/*
-            // Add queued chat messages to the current websocket message.
-            n := len(c.send)
-            for i := 0; i < n; i++ {
-                w.Write(newline)
-                w.Write(<-c.send)
-            }
-*/
+
             if err := w.Close(); err != nil {
                 return
             }
@@ -115,7 +108,7 @@ func (c *Client) writePump() {
 }
 
 // serveWs handles websocket requests from the peer.
-func serveWs(bus *Bus, w http.ResponseWriter, r *http.Request) {
+func ServeWs(bus *Bus, w http.ResponseWriter, r *http.Request) {
     upgrader.CheckOrigin = func(r *http.Request) bool { return true }
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
@@ -123,7 +116,7 @@ func serveWs(bus *Bus, w http.ResponseWriter, r *http.Request) {
         return
     }
     client := &Client{bus: bus, conn: conn, send: make(chan []byte, 256)}
-    client.bus.register <- client
+    client.bus.Register <- client
 
     // Allow collection of memory referenced by the caller by doing all work in
     // new goroutines.
