@@ -144,7 +144,7 @@ func (h *History) createMessage() *types.Message {
         message.Capacity = h.current.stats.capacity
         message.Decentral = h.current.stats.decentral
     }
-//    message.SmeshersGeo		[]Geo
+    message.SmeshersGeo = h.smeshersGeo
     for i = 0; i < types.PointsCount; i++ {
         message.Smeshers[i].Uv     = uint64(i)
         message.Transactions[i].Uv = uint64(i)
@@ -159,8 +159,11 @@ func (h *History) createMessage() *types.Message {
         i = 0
     }
     for ; i < types.PointsCount; i++ {
-        state, _ := h.layers[index]
+        state, ok := h.layers[index]
         index++
+        if !ok {
+            panic("layer not found!")
+        }
         message.Smeshers[i].Amt     = state.stats.smeshers
         message.Transactions[i].Amt = state.stats.transactions
         message.Accounts[i].Amt     = state.stats.accounts
@@ -189,7 +192,7 @@ func (h *History) createMockState() {
         state.layer = &types.Layer{Index: h.current.layer.Index + 1}
         state.stats.initMock(&h.current.stats)
     } else {
-        state.layer = &types.Layer{Index: 1}
+        state.layer = &types.Layer{Index: 0}
         state.stats.initEmptyMock()
     }
     h.layers[state.layer.Index] = state
@@ -246,6 +249,13 @@ func (h *History) RunMock() {
     h.epoch = 1
     h.genesis = time.Now()
     time.Sleep(5 * time.Second)
+    h.smeshersGeo = append(h.smeshersGeo,
+        types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{32.08088, 34.78057}},
+        types.Geo{Name: "New York", Coordinates: [2]float64{40.71427, -74.00597}},
+        types.Geo{Name: "Chernihiv", Coordinates: [2]float64{51.50551, 31.28487}},
+        types.Geo{Name: "Montreal", Coordinates: [2]float64{45.50884, -73.58781}},
+        types.Geo{Name: "Kyiv", Coordinates: [2]float64{50.45466, 30.5238}},
+    )
     for {
         h.createMockState()
         time.Sleep(15 * time.Second)
