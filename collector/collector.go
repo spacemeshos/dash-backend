@@ -18,6 +18,8 @@ const (
     streamType_global_Account			int = 4
     streamType_global_Reward			int = 5
     streamType_global_TransactionReceipt	int = 6
+
+    streamType_count				int = 6
 )
 
 type Collector struct {
@@ -28,7 +30,7 @@ type Collector struct {
     meshClient		pb.MeshServiceClient
     globalClient	pb.GlobalStateServiceClient
 
-    streams [3]bool
+    streams [streamType_count]bool
     activeStreams int
     online bool
 
@@ -76,10 +78,10 @@ func (c *Collector) Run() {
                 c.streams[(-state) - 1] = false
                 c.activeStreams--
             }
-            if c.activeStreams == 2 {
+            if c.activeStreams == streamType_count {
                 c.online = true
             }
-            if c.online && c.activeStreams < 2 {
+            if c.online && c.activeStreams < streamType_count {
                 break
             }
         }

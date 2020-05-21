@@ -133,7 +133,7 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
 
 func (h *History) createMessage() *types.Message {
     var i int
-    var index sm.LayerID = 1
+    var index sm.LayerID = 0
     statesCount := len(h.layers)
     message := &types.Message{}
     message.Network = "TESTNET 0.1"
