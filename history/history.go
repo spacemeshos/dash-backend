@@ -44,7 +44,7 @@ type History struct {
 
     layers 		map[sm.LayerID]*State
     accounts		map[sm.Address]*types.Account
-    smeshers		map[sm.Address]*types.Account
+    smeshers		map[sm.Address]bool
     mux 		sync.Mutex
 }
 
@@ -97,9 +97,11 @@ func (h *History) AddLayer(layer *types.Layer) {
 func (h *History) AddAccount(account *types.Account) {
     h.mux.Lock()
     defer h.mux.Unlock()
-    _, ok := h.accounts[account.Address]
+    acc, ok := h.accounts[account.Address]
     if !ok {
         h.accounts[account.Address] = account
+    } else {
+        acc.Balance = account.Balance
     }
     if h.current != nil {
         h.current.stats.accounts = uint64(len(h.accounts))
@@ -120,8 +122,7 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
         if ok {
             tx.Result = txReceipt.Result
             if tx.IsATX() {
-                _, ok := h.smeshers[tx.Smesher_id]
-                h.smeshers[tx.Smesher_id] = tx.Smesher_id
+                h.smeshers[tx.Smesher_id] = true
                 if h.current != nil {
                     h.current.stats.smeshers = uint64(len(h.smeshers))
                 }
@@ -234,7 +235,7 @@ func NewHistory(bus *client.Bus) *History {
         genesis: time.Now(),
         layers: make(map[sm.LayerID]*State),
         accounts: make(map[sm.Address]*types.Account),
-        smeshers: make(map[sm.Address]*types.Account),
+        smeshers: make(map[sm.Address]bool),
     }
 }
 
