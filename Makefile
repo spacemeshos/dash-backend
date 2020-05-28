@@ -51,7 +51,7 @@ endif
 .PHONY: genproto
 
 
-build: genproto
+build:
 ifeq ($(OS),Windows_NT)
 	go build ${LDFLAGS} -o $(BIN_DIR_WIN)/$(BINARY).exe
 else
