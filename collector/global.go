@@ -80,6 +80,9 @@ func (c *Collector) rewardsPump() error {
             return err
         }
 
+        var smesherId types.SmesherID
+        copy(smesherId[:], reward.GetSmesher().GetId())
+
         log.Info("Reward: %s", reward.GetTotal())
         c.history.AddReward(
             &types.Reward{
@@ -88,7 +91,7 @@ func (c *Collector) rewardsPump() error {
                 Layer_reward: types.Amount(reward.GetLayerReward().GetValue()),
                 Layer_computed: sm.LayerID(reward.GetLayerComputed()),
                 Coinbase: sm.BytesToAddress(reward.GetCoinbase().GetAddress()),
-                Smesher: sm.BytesToAddress(reward.GetSmesher().GetId()),
+                Smesher: smesherId,
             },
         )
     }
@@ -99,17 +102,17 @@ func (c *Collector) rewardsPump() error {
 func (c *Collector) transactionsReceiptPump() error {
     var req empty.Empty
 
-    log.Info("Start global state reward pump")
+    log.Info("Start global transactions receipt pump")
     defer func() {
         c.notify <- -streamType_global_TransactionReceipt
-        log.Info("Stop global state reward pump")
+        log.Info("Stop global transactions receipt pump")
     }()
 
     c.notify <- +streamType_global_TransactionReceipt
 
     stream, err := c.globalClient.TransactionReceiptStream(context.Background(), &req)
     if err != nil {
-        log.Error("cannot get global state reward stream: %s", err)
+        log.Error("cannot get global transactions receipt stream: %s", err)
         return err
     }
 
@@ -136,6 +139,43 @@ func (c *Collector) transactionsReceiptPump() error {
                 Layer_number: sm.LayerID(txReceipt.GetLayerNumber()),
             },
         )
+    }
+
+    return nil
+}
+
+func (c *Collector) transactionsStatePump() error {
+    var req empty.Empty
+
+    log.Info("Start global state transactions state pump")
+    defer func() {
+        c.notify <- -streamType_global_TransactionState
+        log.Info("Stop global state transactions state pump")
+    }()
+
+    c.notify <- +streamType_global_TransactionState
+
+    stream, err := c.globalClient.TransactionStateStream(context.Background(), &req)
+    if err != nil {
+        log.Error("cannot get global state transactions state: %s", err)
+        return err
+    }
+
+    for {
+        txState, err := stream.Recv()
+        if err == io.EOF {
+            return err
+        }
+        if err != nil {
+            log.Error("cannot receive TransactionState: %s", err)
+            return err
+        }
+
+        log.Info("TransactionState: %s, %s", txState.GetId(), txState.GetState())
+        var id sm.TransactionID
+        copy(id[:], txState.GetId().GetId())
+
+        c.history.AddTransactionState(&id, txState.GetState());
     }
 
     return nil

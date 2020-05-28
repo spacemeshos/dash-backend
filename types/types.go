@@ -3,7 +3,7 @@ package types
 import (
     "encoding/json"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
-    pb "github.com/spacemeshos/dash-backend/api/proto/spacemesh"
+    pb "github.com/spacemeshos/dash-backend/spacemesh"
 )
 
 const PointsCount = 50
@@ -34,7 +34,16 @@ type Message struct {
     Security		[PointsCount]Point `json:"security"`
 }
 
+type Network struct {
+    NetId			uint64
+    GenesisTime			uint64
+    EpochNumLayers		uint64
+    MaxTransactionsPerSecond	uint64
+}
+
 type Amount uint64
+
+type SmesherID [32]byte
 
 type TransactionFee struct {
     Gas_consumed	uint64
@@ -55,7 +64,7 @@ type Reward struct {
     Layer_computed	sm.LayerID	// layer number of the layer when reward was computed
     // tx_fee = total - layer_reward
     Coinbase		sm.Address	// account awarded this reward
-    Smesher		sm.Address	// it will be nice to always have this in reward events
+    Smesher		SmesherID	// it will be nice to always have this in reward events
 }
 
 type TransactionReceipt struct {
@@ -77,8 +86,9 @@ type Transaction struct {
     Amount	Amount		// amount of coin transfered in this tx by sender
     Counter	uint64		// tx counter aka nonce
     Data	[]byte		// binary payload - used for app, deploy, atx and spwan transactions
-    Smesher_id	sm.Address	// used in atx only
+    SmesherId	SmesherID	// used in atx only
     Prev_atx	sm.TransactionID// previous ATX. used in atx.
+    State	pb.TransactionState_TransactionStateType
     Result	pb.TransactionReceipt_TransactionResult
 }
 

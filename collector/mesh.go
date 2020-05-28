@@ -3,8 +3,9 @@ package collector
 import (
     "context"
     "io"
+    "time"
 
-    pb "github.com/spacemeshos/dash-backend/api/proto/spacemesh"
+    pb "github.com/spacemeshos/dash-backend/spacemesh"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
 //    "google.golang.org/grpc"
 //    "google.golang.org/grpc/grpclog"
@@ -14,6 +15,42 @@ import (
 
     "github.com/spacemeshos/dash-backend/types"
 )
+
+func (c *Collector) getNetwork() error {
+    var req empty.Empty
+
+    // set timeout
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    genesisTime, err := c.meshClient.GenesisTime(ctx, &req)
+    if err != nil {
+        log.Error("cannot get GenesisTime: %s", err)
+        return err
+    }
+
+    netId, err := c.meshClient.NetId(ctx, &req)
+    if err != nil {
+        log.Error("cannot get NetId: %s", err)
+        return err
+    }
+
+    epochNumLayers, err := c.meshClient.EpochNumLayers(ctx, &req)
+    if err != nil {
+        log.Error("cannot get EpochNumLayers: %s", err)
+        return err
+    }
+
+    maxTransactionsPerSecond, err := c.meshClient.MaxTransactionsPerSecond(ctx, &req)
+    if err != nil {
+        log.Error("cannot get MaxTransactionsPerSecond: %s", err)
+        return err
+    }
+
+    c.history.SetNetwork(netId.GetValue(), genesisTime.GetValue(), epochNumLayers.GetValue(), maxTransactionsPerSecond.GetValue())
+
+    return nil
+}
 
 func (c *Collector) layersPump() error {
     var req empty.Empty
@@ -63,8 +100,10 @@ func (c *Collector) layersPump() error {
             for j, t := range txs {
                 var id sm.TransactionID
                 var atx sm.TransactionID
+                var smesherId types.SmesherID
                 copy(id[:], t.GetId().GetId())
                 copy(atx[:], t.GetPrevAtx().GetId())
+                copy(smesherId[:], t.GetSmesherId().GetId())
                 tx := &types.Transaction{
                     TxType: t.GetType(),
                     Id: id,
@@ -78,7 +117,7 @@ func (c *Collector) layersPump() error {
                     Amount: types.Amount(t.GetAmount().GetValue()),
                     Counter: t.GetCounter(),
                     Data: t.GetData(),
-                    Smesher_id: sm.BytesToAddress(t.GetSmesherId().GetId()),
+                    SmesherId: smesherId,
                     Prev_atx: atx,
                     Result: pb.TransactionReceipt_UNKNOWN,
                 }

@@ -9,6 +9,7 @@ import (
 //    "github.com/spacemeshos/go-spacemesh/log"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
 
+    pb "github.com/spacemeshos/dash-backend/spacemesh"
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/types"
 )
@@ -25,6 +26,7 @@ type Stats struct {
 }
 
 type State struct {
+    epoch uint32
     layer *types.Layer
     transactions	map[sm.TransactionID]*types.Transaction
 
@@ -34,29 +36,28 @@ type State struct {
 type History struct {
     bus 	*client.Bus
 
+    network	types.Network
+
     smeshersGeo	[]types.Geo
-    genesis	time.Time
-    epoch	uint64
-    capacity	uint64
     decentral	uint64
 
     current 	*State
 
     layers 		map[sm.LayerID]*State
     accounts		map[sm.Address]*types.Account
-    smeshers		map[sm.Address]bool
+    smeshers		map[types.SmesherID]sm.LayerID
     mux 		sync.Mutex
 }
 
-func newState(layer *types.Layer) *State {
+func newState(layer *types.Layer, h *History) *State {
     state := &State{
         transactions: make(map[sm.TransactionID]*types.Transaction),
     }
-    state.update(layer)
+    state.update(layer, h)
     return state
 }
 
-func (s *State) update(layer *types.Layer) {
+func (s *State) update(layer *types.Layer, h *History) {
     s.layer = layer
     for _, block := range layer.Blocks {
         for _, tx := range block.Transactions {
@@ -67,6 +68,22 @@ func (s *State) update(layer *types.Layer) {
         }
     }
     s.stats.transactions = getTransactionsCount(s.transactions)
+    accounts, totalBalance := getAccountsCountAndTotalBalance(h.accounts)
+    s.stats.accounts = accounts
+    s.stats.circulation = totalBalance
+}
+
+func (h *History) SetNetwork(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64) {
+    h.network.NetId = netId
+    h.network.GenesisTime = genesisTime
+    if epochNumLayers == 0 {
+        epochNumLayers = 100
+    }
+    h.network.EpochNumLayers = epochNumLayers
+    if maxTransactionsPerSecond == 0 {
+        maxTransactionsPerSecond = 100
+    }
+    h.network.MaxTransactionsPerSecond = maxTransactionsPerSecond
 }
 
 func (h *History) AddLayer(layer *types.Layer) {
@@ -77,10 +94,10 @@ func (h *History) AddLayer(layer *types.Layer) {
         if reflect.DeepEqual(layer.Hash, state.layer.Hash) {
             state.layer.Status = layer.Status
         } else {
-            state.update(layer)
+            state.update(layer, h)
         }
     } else {
-        state = newState(layer)
+        state = newState(layer, h)
         h.layers[layer.Index] = state
     }
     if h.current != nil {
@@ -111,6 +128,10 @@ func (h *History) AddAccount(account *types.Account) {
 func (h *History) AddReward(reward *types.Reward) {
     h.mux.Lock()
     defer h.mux.Unlock()
+    state, ok := h.layers[reward.Layer]
+    if ok {
+        state.stats.rewards += uint64(reward.Total)
+    }
 }
 
 func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
@@ -121,12 +142,20 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
         tx, ok := state.transactions[txReceipt.Id]
         if ok {
             tx.Result = txReceipt.Result
-            if tx.IsATX() {
-                h.smeshers[tx.Smesher_id] = true
-                if h.current != nil {
-                    h.current.stats.smeshers = uint64(len(h.smeshers))
-                }
+            if tx.Result == pb.TransactionReceipt_EXECUTED && tx.IsATX() {
+                h.smeshers[tx.SmesherId] = txReceipt.Layer_number
             }
+        }
+    }
+}
+
+func (h *History) AddTransactionState(txId *sm.TransactionID, txState pb.TransactionState_TransactionStateType) {
+    h.mux.Lock()
+    defer h.mux.Unlock()
+    if h.current != nil {
+        tx, ok := h.current.transactions[*txId]
+        if ok {
+            tx.State = txState
         }
     }
 }
@@ -137,11 +166,11 @@ func (h *History) createMessage() *types.Message {
     statesCount := len(h.layers)
     message := &types.Message{}
     message.Network = "TESTNET 0.1"
-    message.Age = uint64(time.Now().Second() - h.genesis.Second())
-    message.Epoch = h.epoch
+    message.Age = uint64(time.Now().Unix()) - h.network.GenesisTime
     if h.current != nil {
+        message.Epoch = uint64(h.current.layer.Index) / h.network.EpochNumLayers
         message.Layer = uint64(h.current.layer.Index)
-        message.Capacity = h.current.stats.capacity
+        message.Capacity = h.network.MaxTransactionsPerSecond
         message.Decentral = h.current.stats.decentral
     }
     message.SmeshersGeo = h.smeshersGeo
@@ -184,6 +213,18 @@ func getTransactionsCount(txs map[sm.TransactionID]*types.Transaction) uint64 {
         }
     }
     return count
+}
+
+func getAccountsCountAndTotalBalance(accounts map[sm.Address]*types.Account) (uint64, uint64) {
+    var count uint64
+    var total uint64
+    for _, account := range accounts {
+        if account.Balance > 0 {
+            count++
+            total += uint64(account.Balance)
+        }
+    }
+    return count, total
 }
 
 func (h *History) createMockState() {
@@ -235,10 +276,9 @@ func NewHistory(bus *client.Bus) *History {
     return &History{
         bus: bus,
         current: nil,
-        genesis: time.Now(),
         layers: make(map[sm.LayerID]*State),
         accounts: make(map[sm.Address]*types.Account),
-        smeshers: make(map[sm.Address]bool),
+        smeshers: make(map[types.SmesherID]sm.LayerID),
     }
 }
 
@@ -246,15 +286,17 @@ func (h *History) Run() {
 }
 
 func (h *History) RunMock() {
-    h.epoch = 1
-    h.genesis = time.Now()
+    h.network.GenesisTime = uint64(time.Now().Unix())
+    h.network.EpochNumLayers = 100
+    h.network.MaxTransactionsPerSecond = 100
+
     time.Sleep(5 * time.Second)
     h.smeshersGeo = append(h.smeshersGeo,
-        types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{32.08088, 34.78057}},
-        types.Geo{Name: "New York", Coordinates: [2]float64{40.71427, -74.00597}},
-        types.Geo{Name: "Chernihiv", Coordinates: [2]float64{51.50551, 31.28487}},
-        types.Geo{Name: "Montreal", Coordinates: [2]float64{45.50884, -73.58781}},
-        types.Geo{Name: "Kyiv", Coordinates: [2]float64{50.45466, 30.5238}},
+        types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{34.78057, 32.08088}},
+        types.Geo{Name: "New York", Coordinates: [2]float64{-74.00597, 40.71427}},
+        types.Geo{Name: "Chernihiv", Coordinates: [2]float64{31.28487, 51.50551}},
+        types.Geo{Name: "Montreal", Coordinates: [2]float64{-73.58781, 45.50884}},
+        types.Geo{Name: "Kyiv", Coordinates: [2]float64{30.5238, 50.45466}},
     )
     for {
         h.createMockState()
