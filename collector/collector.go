@@ -3,7 +3,7 @@ package collector
 import (
     "time"
 
-     pb "github.com/spacemeshos/dash-backend/spacemesh"
+     pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
     "google.golang.org/grpc"
 
     "github.com/spacemeshos/go-spacemesh/log"
@@ -15,12 +15,9 @@ const (
     streamType_node_SyncStatus			int = 1
     streamType_node_Error			int = 2
     streamType_mesh_Layer			int = 3
-    streamType_global_Account			int = 4
-    streamType_global_Reward			int = 5
-    streamType_global_TransactionReceipt	int = 6
-    streamType_global_TransactionState		int = 7
+    streamType_globalState			int = 4
 
-    streamType_count				int = 7
+    streamType_count				int = 4
 )
 
 type Collector struct {
@@ -62,7 +59,7 @@ func (c *Collector) Run() {
         c.meshClient = pb.NewMeshServiceClient(conn)
         c.globalClient = pb.NewGlobalStateServiceClient(conn)
 
-        err = c.getNetwork()
+        err = c.getNetworkInfo()
         if err != nil {
             log.Error("cannot get network info: %s", err)
             time.Sleep(5 * time.Second)
@@ -72,10 +69,7 @@ func (c *Collector) Run() {
         go c.syncStatusPump()
         go c.errorPump()
         go c.layersPump()
-        go c.accountsPump()
-        go c.rewardsPump()
-        go c.transactionsReceiptPump()
-        go c.transactionsStatePump()
+        go c.globalStatePump()
 
         for {
             state := <-c.notify

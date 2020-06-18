@@ -1,79 +1,21 @@
 package history
 
 import (
-    "math/rand"
-    "sync"
+    "context"
+//    "reflect"
     "time"
-    "reflect"
 
-//    "github.com/spacemeshos/go-spacemesh/log"
+    "github.com/spacemeshos/go-spacemesh/log"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
 
-    pb "github.com/spacemeshos/dash-backend/spacemesh"
+//    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/types"
+
+    "go.mongodb.org/mongo-driver/bson"
 )
 
-type Stats struct {
-    capacity		uint64
-    decentral		uint64
-    smeshers		uint64
-    accounts		uint64
-    transactions	uint64
-    circulation		uint64
-    rewards		uint64
-    security		uint64
-}
-
-type State struct {
-    epoch uint32
-    layer *types.Layer
-    transactions	map[sm.TransactionID]*types.Transaction
-
-    stats	Stats
-}
-
-type History struct {
-    bus 	*client.Bus
-
-    network	types.Network
-
-    smeshersGeo	[]types.Geo
-    decentral	uint64
-
-    current 	*State
-
-    layers 		map[sm.LayerID]*State
-    accounts		map[sm.Address]*types.Account
-    smeshers		map[types.SmesherID]sm.LayerID
-    mux 		sync.Mutex
-}
-
-func newState(layer *types.Layer, h *History) *State {
-    state := &State{
-        transactions: make(map[sm.TransactionID]*types.Transaction),
-    }
-    state.update(layer, h)
-    return state
-}
-
-func (s *State) update(layer *types.Layer, h *History) {
-    s.layer = layer
-    for _, block := range layer.Blocks {
-        for _, tx := range block.Transactions {
-            _, ok := s.transactions[tx.Id]
-            if !ok {
-                s.transactions[tx.Id] = tx
-            }
-        }
-    }
-    s.stats.transactions = getTransactionsCount(s.transactions)
-    accounts, totalBalance := getAccountsCountAndTotalBalance(h.accounts)
-    s.stats.accounts = accounts
-    s.stats.circulation = totalBalance
-}
-
-func (h *History) SetNetwork(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64) {
+func (h *History) SetNetworkInfo(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64, layerDuration uint64) {
     h.network.NetId = netId
     h.network.GenesisTime = genesisTime
     if epochNumLayers == 0 {
@@ -84,31 +26,50 @@ func (h *History) SetNetwork(netId uint64, genesisTime uint64, epochNumLayers ui
         maxTransactionsPerSecond = 100
     }
     h.network.MaxTransactionsPerSecond = maxTransactionsPerSecond
+    h.network.LayerDuration = layerDuration
+}
+
+func (h *History) GetStatistics(epochNumber uint64, stats *Stats) {
+    stats.capacity = 0
+    stats.decentral = 0
+    stats.smeshers = 0
+    stats.accounts = 0
+    stats.transactions = 0
+    stats.circulation = 0
+    stats.rewards = 0
+    stats.security = 0
+
+    epoch, ok := h.epochs[epochNumber]
+    if ok {
+        epoch.GetStatistics(stats)
+    }
 }
 
 func (h *History) AddLayer(layer *types.Layer) {
     h.mux.Lock()
     defer h.mux.Unlock()
-    state, ok := h.layers[layer.Index]
-    if ok {
-        if reflect.DeepEqual(layer.Hash, state.layer.Hash) {
-            state.layer.Status = layer.Status
+
+    epochNumber := uint64(layer.Number) / h.network.EpochNumLayers
+    epoch, ok := h.epochs[epochNumber]
+    if !ok {
+        if epochNumber == 0 {
+            epoch = newEpoch(h, epochNumber, nil)
         } else {
-            state.update(layer, h)
+            prev, _ := h.epochs[epochNumber - 1]
+            epoch = newEpoch(h, epochNumber, prev)
         }
-    } else {
-        state = newState(layer, h)
-        h.layers[layer.Index] = state
+        h.epochs[epochNumber] = epoch
     }
-    if h.current != nil {
-        if h.current.layer.Index < state.layer.Index  {
-            h.current = state
+
+    if h.epoch == nil {
+        h.epoch = epoch
+    } else {
+        if epoch.number > h.epoch.number {
+            h.epoch = epoch
         }
-    } else {
-        h.current = state
     }
-    message := h.createMessage()
-    h.push(message)
+
+    epoch.addLayer(layer)
 }
 
 func (h *History) AddAccount(account *types.Account) {
@@ -120,60 +81,38 @@ func (h *History) AddAccount(account *types.Account) {
     } else {
         acc.Balance = account.Balance
     }
-    if h.current != nil {
-        h.current.stats.accounts = uint64(len(h.accounts))
-    }
 }
 
 func (h *History) AddReward(reward *types.Reward) {
     h.mux.Lock()
     defer h.mux.Unlock()
-    state, ok := h.layers[reward.Layer]
+
+    epochNumber := uint64(reward.Layer) / h.network.EpochNumLayers
+    epoch, ok := h.epochs[epochNumber]
     if ok {
-        state.stats.rewards += uint64(reward.Total)
+        epoch.addReward(uint64(reward.Total))
     }
 }
 
 func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
     h.mux.Lock()
     defer h.mux.Unlock()
-    state, ok := h.layers[txReceipt.Layer_number]
+
+    epochNumber := uint64(txReceipt.Layer_number) / h.network.EpochNumLayers
+    epoch, ok := h.epochs[epochNumber]
     if ok {
-        tx, ok := state.transactions[txReceipt.Id]
-        if ok {
-            tx.Result = txReceipt.Result
-            if tx.Result == pb.TransactionReceipt_EXECUTED && tx.IsATX() {
-                h.smeshers[tx.SmesherId] = txReceipt.Layer_number
-            }
-        }
+        epoch.addTransactionReceipt(txReceipt)
     }
 }
 
-func (h *History) AddTransactionState(txId *sm.TransactionID, txState pb.TransactionState_TransactionStateType) {
-    h.mux.Lock()
-    defer h.mux.Unlock()
-    if h.current != nil {
-        tx, ok := h.current.transactions[*txId]
-        if ok {
-            tx.State = txState
-        }
-    }
-}
+func (h *History) pushStatistics() {
+    var i uint64
 
-func (h *History) createMessage() *types.Message {
-    var i int
-    var index sm.LayerID = 0
-    statesCount := len(h.layers)
     message := &types.Message{}
     message.Network = "TESTNET 0.1"
     message.Age = uint64(time.Now().Unix()) - h.network.GenesisTime
-    if h.current != nil {
-        message.Epoch = uint64(h.current.layer.Index) / h.network.EpochNumLayers
-        message.Layer = uint64(h.current.layer.Index)
-        message.Capacity = h.network.MaxTransactionsPerSecond
-        message.Decentral = h.current.stats.decentral
-    }
     message.SmeshersGeo = h.smeshersGeo
+
     for i = 0; i < types.PointsCount; i++ {
         message.Smeshers[i].Uv     = uint64(i)
         message.Transactions[i].Uv = uint64(i)
@@ -182,90 +121,40 @@ func (h *History) createMessage() *types.Message {
         message.Rewards[i].Uv      = uint64(i)
         message.Security[i].Uv     = uint64(i)
     }
-    if statesCount < types.PointsCount {
-        i = types.PointsCount - statesCount;
-    } else {
-        i = 0
-    }
-    for ; i < types.PointsCount; i++ {
-        state, ok := h.layers[index]
-        index++
-        if !ok {
-            panic("layer not found!")
-        }
-        message.Smeshers[i].Amt     = state.stats.smeshers
-        message.Transactions[i].Amt = state.stats.transactions
-        message.Accounts[i].Amt     = state.stats.accounts
-        message.Circulation[i].Amt  = state.stats.circulation
-        message.Rewards[i].Amt      = state.stats.rewards
-        message.Security[i].Amt     = state.stats.security
-    }
-    return message
-}
 
-func getTransactionsCount(txs map[sm.TransactionID]*types.Transaction) uint64 {
-    var count uint64
-    for _, tx := range txs {
-        if tx.IsExecuted() {
-            if tx.IsSimple() || tx.IsAPP() {
-                count++
-            }
-        }
-    }
-    return count
-}
+    if h.epoch != nil && h.epoch.lastLayer != nil {
+        var stats Stats
+        var epochCount uint64
+        var epochNumber uint64
 
-func getAccountsCountAndTotalBalance(accounts map[sm.Address]*types.Account) (uint64, uint64) {
-    var count uint64
-    var total uint64
-    for _, account := range accounts {
-        if account.Balance > 0 {
-            count++
-            total += uint64(account.Balance)
+        epochNumber = h.epoch.number
+        message.Epoch = epochNumber
+        message.Layer = uint64(h.epoch.lastLayer.Number)
+
+        i = types.PointsCount - 1
+        epochCount = h.epoch.number + 1
+        if epochCount > types.PointsCount {
+            epochCount = types.PointsCount
+        }
+
+//        message.Capacity = h.network.MaxTransactionsPerSecond
+//        message.Decentral = h.current.stats.decentral
+
+        for ; epochCount > 0;  {
+            i--
+            epochCount--
+            epochNumber--
+            h.GetStatistics(epochNumber, &stats)
+            message.Smeshers[i].Amt     = stats.smeshers
+            message.Transactions[i].Amt = stats.transactions
+            message.Accounts[i].Amt     = stats.accounts
+            message.Circulation[i].Amt  = stats.circulation
+            message.Rewards[i].Amt      = stats.rewards
+            message.Security[i].Amt     = stats.security
         }
     }
-    return count, total
-}
 
-func (h *History) createMockState() {
-    state := &State{}
-    if h.current != nil {
-        state.layer = &types.Layer{Index: h.current.layer.Index + 1}
-        state.stats.initMock(&h.current.stats)
-    } else {
-        state.layer = &types.Layer{Index: 0}
-        state.stats.initEmptyMock()
-    }
-    h.layers[state.layer.Index] = state
-    h.current = state;
-    message := h.createMessage()
-    h.push(message)
-}
-
-func randUint(min int, max int) int {
-    return min + rand.Intn(max-min)
-}
-
-func (s *Stats) initEmptyMock() {
-    s.capacity     = uint64(randUint(0, 100))
-    s.decentral    = uint64(randUint(0, 100))
-    s.smeshers     = uint64(randUint(0, 100))
-    s.transactions = uint64(randUint(0, 100))
-    s.accounts     = uint64(randUint(0, 100))
-    s.circulation  = uint64(randUint(0, 100))
-    s.rewards      = uint64(randUint(0, 100))
-    s.security     = uint64(randUint(0, 100))
-}
-
-func (s *Stats) initMock(prev *Stats) {
-    s.capacity     = uint64(randUint(0, 100))
-    s.decentral    = uint64(randUint(0, 100))
-    s.smeshers     = prev.smeshers + uint64(randUint(0, 100))
-    s.transactions = prev.transactions + uint64(randUint(0, 100))
-    s.accounts     = prev.accounts + uint64(randUint(0, 100))
-    s.circulation  = prev.circulation + uint64(randUint(0, 100))
-    s.rewards      = prev.rewards + uint64(randUint(0, 100))
-    s.security     = prev.security + uint64(randUint(0, 100))
+    h.bus.Notify <- message.ToJson()
 }
 
 func (h *History) push(m *types.Message) {
@@ -275,22 +164,24 @@ func (h *History) push(m *types.Message) {
 func NewHistory(bus *client.Bus) *History {
     return &History{
         bus: bus,
-        current: nil,
-        layers: make(map[sm.LayerID]*State),
         accounts: make(map[sm.Address]*types.Account),
-        smeshers: make(map[types.SmesherID]sm.LayerID),
+        epochs: make(map[uint64]*Epoch),
     }
 }
 
 func (h *History) Run() {
-}
-
-func (h *History) RunMock() {
-    h.network.GenesisTime = uint64(time.Now().Unix())
-    h.network.EpochNumLayers = 100
-    h.network.MaxTransactionsPerSecond = 100
-
-    time.Sleep(5 * time.Second)
+    err := h.storage.open()
+    if err != nil {
+        panic("Error open MongoDB")
+    }
+    defer h.storage.close()
+    ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+    res, err := h.storage.db.Collection("test").InsertOne(ctx, bson.M{"name": "pi", "value": 3.14159})
+    if err != nil {
+        panic("Error insert into test collection")
+    }
+    id := res.InsertedID
+    log.Info("Test _id: %v", id)
     h.smeshersGeo = append(h.smeshersGeo,
         types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{34.78057, 32.08088}},
         types.Geo{Name: "New York", Coordinates: [2]float64{-74.00597, 40.71427}},
@@ -299,7 +190,7 @@ func (h *History) RunMock() {
         types.Geo{Name: "Kyiv", Coordinates: [2]float64{30.5238, 50.45466}},
     )
     for {
-        h.createMockState()
+        h.pushStatistics()
         time.Sleep(15 * time.Second)
     }
 }

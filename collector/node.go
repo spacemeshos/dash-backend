@@ -5,10 +5,7 @@ import (
     "io"
     "time"
 
-//     pb "github.com/spacemeshos/dash-backend/api/proto/spacemesh"
-//    "google.golang.org/grpc"
-//    "google.golang.org/grpc/grpclog"
-    "github.com/golang/protobuf/ptypes/empty"
+     pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
 
     "github.com/spacemeshos/go-spacemesh/log"
 
@@ -16,7 +13,7 @@ import (
 )
 
 func (c *Collector) syncStart() error {
-    var req empty.Empty
+    req := pb.SyncStartRequest{}
 
     // set timeout
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -33,7 +30,7 @@ func (c *Collector) syncStart() error {
 }
 
 func (c *Collector) syncStatusPump() error {
-    var req empty.Empty
+    req := pb.StatusStreamRequest{}
 
     log.Info("Start node sync status pump")
     defer func() {
@@ -43,7 +40,7 @@ func (c *Collector) syncStatusPump() error {
 
     c.notify <- +streamType_node_SyncStatus
 
-    stream, err := c.nodeClient.SyncStatusStream(context.Background(), &req)
+    stream, err := c.nodeClient.StatusStream(context.Background(), &req)
     if err != nil {
         log.Error("cannot get sync status stream: %s", err)
         return err
@@ -73,7 +70,7 @@ func (c *Collector) syncStatusPump() error {
 }
 
 func (c *Collector) errorPump() error {
-    var req empty.Empty
+    req := pb.ErrorStreamRequest{}
 
     log.Info("Start node error pump")
     defer func() {
@@ -99,7 +96,7 @@ func (c *Collector) errorPump() error {
             return err
         }
 
-        log.Info("Node error: %s", res.GetMessage())
+        log.Info("Node error: %s", res.GetError().GetMessage())
     }
 
     return nil

@@ -37,5 +37,5 @@ EXPOSE 8080
 # profiling port
 EXPOSE 6060
 
-# пкзс port
+# gRPC port
 EXPOSE 9990

@@ -3,7 +3,7 @@ package types
 import (
     "encoding/json"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
-    pb "github.com/spacemeshos/dash-backend/spacemesh"
+    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
 )
 
 const PointsCount = 50
@@ -34,16 +34,26 @@ type Message struct {
     Security		[PointsCount]Point `json:"security"`
 }
 
-type Network struct {
+type NetworkInfo struct {
     NetId			uint64
     GenesisTime			uint64
     EpochNumLayers		uint64
     MaxTransactionsPerSecond	uint64
+    LayerDuration		uint64
 }
 
 type Amount uint64
 
+type ActivationID sm.ATXID
+
 type SmesherID [32]byte
+
+type Smesher struct {
+    Id			SmesherID
+    Geo			Geo
+    Activations		[]*Activation
+    Commitment_size	uint64	// commitment size in bytes
+}
 
 type TransactionFee struct {
     Gas_consumed	uint64
@@ -67,6 +77,11 @@ type Reward struct {
     Smesher		SmesherID	// it will be nice to always have this in reward events
 }
 
+type GasOffered struct {
+    Gas_provided	uint64
+    Gas_price		uint64
+}
+
 type TransactionReceipt struct {
     Id			sm.TransactionID// the source transaction
     // The results of STF transaction processing
@@ -74,35 +89,75 @@ type TransactionReceipt struct {
     Gas_used		uint64		// gas units used by the transaction (gas price in tx)
     Fee			Amount		// transaction fee charged for the transaction
     Layer_number	sm.LayerID	// The layer in which the STF processed this transaction
+    Index		uint32		// the index of the tx in the ordered list of txs to be executed by stf in the layer
+    App_address		sm.Address	// deployed app address or code template address
 }
 
-type Transaction struct {
-    TxType	pb.Transaction_TransactionType
+// A simple signature data
+type Signature struct {
+    Scheme	pb.Signature_Scheme	// the signature's scheme
+    Signature	[]byte			// the signature itself
+    Public_key	[]byte			// included in schemes which require signer to provide a public key
+}
+
+// An Activation "transaction" (ATX)
+type Activation struct {
+    Id		ActivationID
+    Layer	sm.LayerID	// the layer that this activation is part of
+    Smesher_id	SmesherID	// id of smesher who created the ATX
+    Coinbase	sm.Address	// coinbase account id
+    Prev_atx	ActivationID	// previous ATX pointed to
+    Commitment_size	uint64	// commitment size in bytes
+}
+
+type Transaction interface {
+    GetID() *sm.TransactionID
+    GetResult() pb.TransactionReceipt_TransactionResult
+    SetResult(result pb.TransactionReceipt_TransactionResult)
+}
+
+type TransactionBase struct {
     Id		sm.TransactionID
-    Sender	sm.Address
-    Fee		TransactionFee
-    Timestamp	uint64		// shouldn't this be part of the event envelope?
-    Receiver	sm.Address	// depending on tx type
+
+    Sender	sm.Address	// tx originator, should match signer inside Signature
+    Gas_offered	GasOffered	// gas price and max gas offered
     Amount	Amount		// amount of coin transfered in this tx by sender
     Counter	uint64		// tx counter aka nonce
-    Data	[]byte		// binary payload - used for app, deploy, atx and spwan transactions
-    SmesherId	SmesherID	// used in atx only
-    Prev_atx	sm.TransactionID// previous ATX. used in atx.
-    State	pb.TransactionState_TransactionStateType
+    Signature	Signature	// sender signature on transaction
+
+//    State	pb.TransactionState_TransactionState
     Result	pb.TransactionReceipt_TransactionResult
+}
+
+// Data specific to a simple coin transaction.
+type CoinTransferTransaction struct {
+    TransactionBase
+
+    Receiver	sm.Address
+}
+
+// Data specific to a smart contract transaction.
+type SmartContractTransaction struct {
+    TransactionBase
+
+    Type	pb.SmartContractTransaction_TransactionType
+    Data	[]byte		// packed binary arguments, including ABI selector
+    Address	sm.Address	// address of smart contract or template
 }
 
 type Block struct {
     Id			sm.BlockID
-    Transactions	[]*Transaction
+    Transactions	[]Transaction
 }
 
 type Layer struct {
-    Index		sm.LayerID
+    Number		sm.LayerID	// layer number - not hash - layer content may change
     Status		pb.Layer_LayerStatus
-    Hash		[]byte
-    Blocks		[]*Block
-    RootStateHash	[]byte
+    Hash		[]byte		// computer layer hash - do we need this?
+    Blocks		[]*Block	// layer's blocks
+    Activations		[]*Activation	// list of layer's activations
+    RootStateHash	[]byte		// when available - the root state hash of global state in this layer
+    Transactions	map[sm.TransactionID]Transaction
 }
 
 func (m *Message) ToJson() []byte {
@@ -110,22 +165,14 @@ func (m *Message) ToJson() []byte {
     return b
 }
 
-func (t *TransactionReceipt) IsExecuted() bool {
-    return t.Result == pb.TransactionReceipt_EXECUTED
+func (tx *TransactionBase) GetID() *sm.TransactionID {
+    return &tx.Id
 }
 
-func (t *Transaction) IsExecuted() bool {
-    return t.Result == pb.TransactionReceipt_EXECUTED
+func (tx *TransactionBase) GetResult() pb.TransactionReceipt_TransactionResult {
+    return tx.Result
 }
 
-func (t *Transaction) IsSimple() bool {
-    return t.TxType == pb.Transaction_SIMPLE
-}
-
-func (t *Transaction) IsATX() bool {
-    return t.TxType == pb.Transaction_ATX
-}
-
-func (t *Transaction) IsAPP() bool {
-    return t.TxType == pb.Transaction_APP
+func (tx *TransactionBase) SetResult(result pb.TransactionReceipt_TransactionResult) {
+    tx.Result = result
 }

@@ -5,8 +5,8 @@ import (
     "io"
     "time"
 
-    pb "github.com/spacemeshos/dash-backend/spacemesh"
-    sm "github.com/spacemeshos/go-spacemesh/common/types"
+//    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
+//    sm "github.com/spacemeshos/go-spacemesh/common/types"
 //    "google.golang.org/grpc"
 //    "google.golang.org/grpc/grpclog"
     "github.com/golang/protobuf/ptypes/empty"
@@ -16,7 +16,7 @@ import (
     "github.com/spacemeshos/dash-backend/types"
 )
 
-func (c *Collector) getNetwork() error {
+func (c *Collector) getNetworkInfo() error {
     var req empty.Empty
 
     // set timeout
@@ -47,7 +47,13 @@ func (c *Collector) getNetwork() error {
         return err
     }
 
-    c.history.SetNetwork(netId.GetValue(), genesisTime.GetValue(), epochNumLayers.GetValue(), maxTransactionsPerSecond.GetValue())
+    c.history.SetNetworkInfo(
+        netId.GetNetid().GetValue(),
+        genesisTime.GetUnixtime().GetValue(),
+        epochNumLayers.GetNumlayers().GetValue(),
+        maxTransactionsPerSecond.GetMaxtxpersecond().GetValue(),
+        15,
+    )
 
     return nil
 }
@@ -70,7 +76,7 @@ func (c *Collector) layersPump() error {
     }
 
     for {
-        l, err := stream.Recv()
+        response, err := stream.Recv()
         if err == io.EOF {
             return err
         }
@@ -78,55 +84,9 @@ func (c *Collector) layersPump() error {
             log.Error("cannot receive layer: %s", err)
             return err
         }
-
-        log.Info("Mesh stream: %s", l.GetNumber())
-        blocks := l.GetBlocks()
-        layer := &types.Layer{
-            Index: sm.LayerID(l.GetNumber()),
-            Status: l.GetStatus(),
-            Hash: l.GetHash(),
-            Blocks: make([]*types.Block, len(blocks)),
-            RootStateHash: l.GetRootStateHash(),
-        }
-
-        for i, b := range blocks {
-            var id sm.BlockID
-            copy(id[:], b.GetId())
-            txs := b.GetTransactions()
-            block := &types.Block{
-                Id: id,
-                Transactions: make([]*types.Transaction, len(txs)),
-            }
-            for j, t := range txs {
-                var id sm.TransactionID
-                var atx sm.TransactionID
-                var smesherId types.SmesherID
-                copy(id[:], t.GetId().GetId())
-                copy(atx[:], t.GetPrevAtx().GetId())
-                copy(smesherId[:], t.GetSmesherId().GetId())
-                tx := &types.Transaction{
-                    TxType: t.GetType(),
-                    Id: id,
-                    Sender: sm.BytesToAddress(t.GetSender().GetAddress()),
-                    Fee: types.TransactionFee{
-                        Gas_consumed: t.GetFee().GetGasConsumed(),
-                        Gas_price: t.GetFee().GetGasPrice(),
-                    },
-                    Timestamp: t.GetTimestamp(),
-                    Receiver: sm.BytesToAddress(t.GetReceiver().GetAddress()),
-                    Amount: types.Amount(t.GetAmount().GetValue()),
-                    Counter: t.GetCounter(),
-                    Data: t.GetData(),
-                    SmesherId: smesherId,
-                    Prev_atx: atx,
-                    Result: pb.TransactionReceipt_UNKNOWN,
-                }
-                block.Transactions[j] = tx
-            }
-            layer.Blocks[i] = block
-        }
-
-        c.history.AddLayer(layer)
+        layer := response.GetLayer()
+        log.Info("Mesh stream: %s", layer.GetNumber())
+        c.history.AddLayer(types.NewLayer(layer))
     }
 
     return nil
