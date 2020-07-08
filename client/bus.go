@@ -1,5 +1,7 @@
 package client
 
+// import "github.com/spacemeshos/go-spacemesh/log"
+
 // Hub maintains the set of active clients and broadcasts states to the
 // clients.
 type Bus struct {
@@ -43,6 +45,7 @@ func (bus *Bus) Run() {
                 close(client.send)
             }
         case bus.state = <-bus.Notify:
+            // log.Info("Bus: %s", bus.state)
             for client := range bus.clients {
                 select {
                 case client.send <- bus.state:

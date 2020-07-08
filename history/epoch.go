@@ -5,6 +5,7 @@ import (
     "reflect"
 
     sm "github.com/spacemeshos/go-spacemesh/common/types"
+    "github.com/spacemeshos/go-spacemesh/log"
 
     pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
     "github.com/spacemeshos/dash-backend/types"
@@ -21,6 +22,7 @@ func newEpoch(h *History, number uint64, prev *Epoch) *Epoch {
 }
 
 func (epoch *Epoch) end() {
+    log.Info("Epoch: end")
     epoch.confirmed = (epoch.prev == nil) || (epoch.prev != nil && epoch.prev.confirmed)
     if epoch.confirmed {
         epoch.computeStatistics(&epoch.stats)
@@ -41,6 +43,7 @@ func allLayersConfirmed(layers map[sm.LayerID]*types.Layer) bool {
 }
 
 func (epoch *Epoch) addLayer(l *types.Layer) {
+    log.Info("Epoch: add layer %v with status %v", l.Number, l.Status)
     layer, ok := epoch.layers[l.Number]
     if !ok {
         layer = l
@@ -89,6 +92,7 @@ func getTransactionsCount(layer *types.Layer) uint64 {
 }
 
 func (epoch *Epoch) computeStatistics(stats *Stats) {
+    // log.Info("Epoch: computeStatistics")
     duration := float64(epoch.history.network.LayerDuration) * float64(len(epoch.layers))
     if duration > 0 && epoch.history.network.MaxTransactionsPerSecond > 0 {
         stats.capacity = uint64(math.Round(((float64(stats.transactions) / duration) / float64(epoch.history.network.MaxTransactionsPerSecond)) * 100.0))
@@ -108,7 +112,9 @@ func (epoch *Epoch) computeStatistics(stats *Stats) {
         }
     }
     stats.smeshers = uint64(len(epoch.smeshers))
-    stats.decentral = uint64(100 * (1.0 - gini(epoch.smeshers)))
+    // degree_of_decentralization is defined as: 0.5 * (min(n,1e4)^2/1e8) + 0.5 * (1 - gini_coeff(last_100_epochs))
+    a := math.Min(float64(len(epoch.smeshers)), 1e4)
+    stats.decentral = uint64(100.0 * (0.5 * (a * a) /1e8  + 0.5 * (1.0 - gini(epoch.smeshers))))
     for _, account := range epoch.history.accounts {
         if account.Balance > 0 {
             stats.accounts++
@@ -119,9 +125,19 @@ func (epoch *Epoch) computeStatistics(stats *Stats) {
     if epoch.prev != nil {
         stats.security = epoch.prev.stats.security
     }
+    // log.Info("Epoch Statistics:")
+    // log.Info("    capacity: %v", stats.capacity)
+    // log.Info("    decentral: %v", stats.decentral)
+    // log.Info("    smeshers: %v", stats.smeshers)
+    // log.Info("    transactions: %v", stats.transactions)
+    // log.Info("    accounts: %v", stats.accounts)
+    // log.Info("    circulation: %v", stats.circulation)
+    // log.Info("    rewards: %v", stats.rewards)
+    // log.Info("    security: %v", stats.security)
 }
 
 func (epoch *Epoch) GetStatistics(stats *Stats) {
+    log.Info("Epoch: GetStatistics for epoch %v", epoch.number)
     if epoch.confirmed {
         *stats = epoch.stats
     } else {

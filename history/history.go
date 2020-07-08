@@ -6,7 +6,7 @@ import (
 //    "reflect"
     "time"
 
-//    "github.com/spacemeshos/go-spacemesh/log"
+    "github.com/spacemeshos/go-spacemesh/log"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
 
 //    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
@@ -50,6 +50,8 @@ func (h *History) AddLayer(layer *types.Layer) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
+    log.Info("History: add layer %v with status %v", layer.Number, layer.Status)
+
     epochNumber := uint64(layer.Number) / h.network.EpochNumLayers
     epoch, ok := h.epochs[epochNumber]
     if !ok {
@@ -76,6 +78,8 @@ func (h *History) AddLayer(layer *types.Layer) {
 func (h *History) AddAccount(account *types.Account) {
     h.mux.Lock()
     defer h.mux.Unlock()
+
+    log.Info("History: add account with balance %v", account.Balance)
     acc, ok := h.accounts[account.Address]
     if !ok {
         h.accounts[account.Address] = account
@@ -88,6 +92,7 @@ func (h *History) AddReward(reward *types.Reward) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
+    log.Info("History: add reward %v", reward.Total)
     epochNumber := uint64(reward.Layer) / h.network.EpochNumLayers
     epoch, ok := h.epochs[epochNumber]
     if ok {
@@ -99,6 +104,7 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
+    log.Info("History: add transaction receipt")
     epochNumber := uint64(txReceipt.Layer_number) / h.network.EpochNumLayers
     epoch, ok := h.epochs[epochNumber]
     if ok {
@@ -108,6 +114,17 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
 
 func (h *History) pushStatistics() {
     var i uint64
+    var layerNumber int = -1
+    var epochNumber int = -1
+
+    if h.epoch != nil {
+        epochNumber = int(h.epoch.number)
+        if h.epoch.lastLayer != nil {
+            layerNumber = int(h.epoch.lastLayer.Number)
+        }
+    }
+
+    log.Info("History: pushStatistics %v/%v", layerNumber, epochNumber)
 
     message := &types.Message{}
     message.Network = "TESTNET 0.1"
@@ -138,20 +155,25 @@ func (h *History) pushStatistics() {
             epochCount = types.PointsCount
         }
 
-//        message.Capacity = h.network.MaxTransactionsPerSecond
-//        message.Decentral = h.current.stats.decentral
+        h.GetStatistics(epochNumber, &stats)
+        message.Capacity = stats.capacity
+        if epochCount > 1 {
+            h.GetStatistics(epochNumber - 1, &stats)
+            message.Decentral = stats.decentral
+        }
 
         for ; epochCount > 0;  {
-            i--
-            epochCount--
-            epochNumber--
             h.GetStatistics(epochNumber, &stats)
+            log.Info("History: stats for epoch %v: %v", epochNumber, stats)
             message.Smeshers[i].Amt     = stats.smeshers
             message.Transactions[i].Amt = stats.transactions
             message.Accounts[i].Amt     = stats.accounts
             message.Circulation[i].Amt  = stats.circulation
             message.Rewards[i].Amt      = stats.rewards
             message.Security[i].Amt     = stats.security
+            i--
+            epochCount--
+            epochNumber--
         }
     }
 

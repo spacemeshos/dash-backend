@@ -77,7 +77,7 @@ func (c *Collector) layersPump() error {
             return err
         }
         layer := response.GetLayer()
-        log.Info("Mesh stream: %v", layer.GetNumber())
+        log.Info("Mesh layer: %v", layer.GetNumber())
         c.history.AddLayer(types.NewLayer(layer))
     }
 

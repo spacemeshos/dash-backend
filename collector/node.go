@@ -21,7 +21,7 @@ func (c *Collector) syncStart() error {
 
     _, err := c.nodeClient.SyncStart(ctx, &req)
     if err != nil {
-        log.Error("cannot create laptop: ", err)
+        log.Error("cannot start node sync: %v", err)
         return err
     }
 
