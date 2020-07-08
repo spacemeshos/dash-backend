@@ -3,6 +3,7 @@ package history
 import (
     "sort"
     "github.com/spacemeshos/dash-backend/types"
+    "github.com/spacemeshos/go-spacemesh/log"
 )
 
 type CommitmentSizes []uint64
@@ -10,9 +11,13 @@ type CommitmentSizes []uint64
 func (a CommitmentSizes) Len() int           { return len(a) }
 func (a CommitmentSizes) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a CommitmentSizes) Less(i, j int) bool { return a[i] < a[j] }
-
+/*
+        1          sum((n + 1 - i)*y[i])
+    G = -(n + 1 - 2---------------------
+        n                sum(y[i])
+*/
 func gini(smeshers map[types.SmesherID]*types.Smesher) float64 {
-    var n uint64
+    var n int
     var sum float64
     data := make(CommitmentSizes, len(smeshers))
     for _, smesher := range smeshers {
@@ -25,9 +30,11 @@ func gini(smeshers map[types.SmesherID]*types.Smesher) float64 {
     }
     sort.Sort(data)
     var top float64
-    for i, x := range data {
-        top += float64((2 * (uint64(i) + 1) - n - 1) * x)
+    for i, y := range data {
+        top += float64(uint64(n - i) * y)
     }
-    return top / (float64(n) * sum)
+    c := (float64(n) + 1.0 - 2.0 * top / sum) / float64(n)
+    log.Info("gini: top = %v, n = %v, sum = %v, coef = %v", top, n, sum, c)
+    return c
 }
 
