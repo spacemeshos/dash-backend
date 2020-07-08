@@ -5,7 +5,7 @@ import (
     "io"
     "time"
 
-     pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
+    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 
     "github.com/spacemeshos/go-spacemesh/log"
 
@@ -42,7 +42,7 @@ func (c *Collector) syncStatusPump() error {
 
     stream, err := c.nodeClient.StatusStream(context.Background(), &req)
     if err != nil {
-        log.Error("cannot get sync status stream: %s", err)
+        log.Error("cannot get sync status stream: %v", err)
         return err
     }
 
@@ -51,14 +51,15 @@ func (c *Collector) syncStatusPump() error {
     for {
         res, err := stream.Recv()
         if err == io.EOF {
+            log.Info("syncStatusPump: EOF")
             return err
         }
         if err != nil {
-            log.Error("cannot receive sync status: %s", err)
+            log.Error("cannot receive sync status: %v", err)
             return err
         }
 
-        log.Info("Node sync status: %s", res.GetStatus())
+        log.Info("Node sync status: %v", res.GetStatus())
 
 //        switch res.GetStatus() {
 //        case pb.NodeSyncStatus_NOT_SYNCED:
@@ -82,21 +83,22 @@ func (c *Collector) errorPump() error {
 
     stream, err := c.nodeClient.ErrorStream(context.Background(), &req)
     if err != nil {
-        log.Error("cannot get error stream: %s", err)
+        log.Error("cannot get error stream: %v", err)
         return err
     }
 
     for {
         res, err := stream.Recv()
         if err == io.EOF {
+            log.Info("errorPump: EOF")
             return err
         }
         if err != nil {
-            log.Error("cannot receive error: %s", err)
+            log.Error("cannot receive error: %v", err)
             return err
         }
 
-        log.Info("Node error: %s", res.GetError().GetMessage())
+        log.Info("Node error: %v", res.GetError().GetMessage())
     }
 
     return nil

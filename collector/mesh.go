@@ -5,45 +5,37 @@ import (
     "io"
     "time"
 
-//    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
-//    sm "github.com/spacemeshos/go-spacemesh/common/types"
-//    "google.golang.org/grpc"
-//    "google.golang.org/grpc/grpclog"
-    "github.com/golang/protobuf/ptypes/empty"
-
+    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
     "github.com/spacemeshos/go-spacemesh/log"
-
     "github.com/spacemeshos/dash-backend/types"
 )
 
 func (c *Collector) getNetworkInfo() error {
-    var req empty.Empty
-
     // set timeout
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
 
-    genesisTime, err := c.meshClient.GenesisTime(ctx, &req)
+    genesisTime, err := c.meshClient.GenesisTime(ctx, &pb.GenesisTimeRequest{})
     if err != nil {
-        log.Error("cannot get GenesisTime: %s", err)
+        log.Error("cannot get GenesisTime: %v", err)
         return err
     }
 
-    netId, err := c.meshClient.NetId(ctx, &req)
+    netId, err := c.meshClient.NetId(ctx, &pb.NetIdRequest{})
     if err != nil {
-        log.Error("cannot get NetId: %s", err)
+        log.Error("cannot get NetId: %v", err)
         return err
     }
 
-    epochNumLayers, err := c.meshClient.EpochNumLayers(ctx, &req)
+    epochNumLayers, err := c.meshClient.EpochNumLayers(ctx, &pb.EpochNumLayersRequest{})
     if err != nil {
-        log.Error("cannot get EpochNumLayers: %s", err)
+        log.Error("cannot get EpochNumLayers: %v", err)
         return err
     }
 
-    maxTransactionsPerSecond, err := c.meshClient.MaxTransactionsPerSecond(ctx, &req)
+    maxTransactionsPerSecond, err := c.meshClient.MaxTransactionsPerSecond(ctx, &pb.MaxTransactionsPerSecondRequest{})
     if err != nil {
-        log.Error("cannot get MaxTransactionsPerSecond: %s", err)
+        log.Error("cannot get MaxTransactionsPerSecond: %v", err)
         return err
     }
 
@@ -59,7 +51,7 @@ func (c *Collector) getNetworkInfo() error {
 }
 
 func (c *Collector) layersPump() error {
-    var req empty.Empty
+    var req pb.LayerStreamRequest
 
     log.Info("Start mesh layer pump")
     defer func() {
@@ -71,7 +63,7 @@ func (c *Collector) layersPump() error {
 
     stream, err := c.meshClient.LayerStream(context.Background(), &req)
     if err != nil {
-        log.Error("cannot get layer stream: %s", err)
+        log.Error("cannot get layer stream: %v", err)
         return err
     }
 
@@ -81,11 +73,11 @@ func (c *Collector) layersPump() error {
             return err
         }
         if err != nil {
-            log.Error("cannot receive layer: %s", err)
+            log.Error("cannot receive layer: %v", err)
             return err
         }
         layer := response.GetLayer()
-        log.Info("Mesh stream: %s", layer.GetNumber())
+        log.Info("Mesh stream: %v", layer.GetNumber())
         c.history.AddLayer(types.NewLayer(layer))
     }
 

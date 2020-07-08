@@ -23,6 +23,10 @@ var (
     nodeAddress = flag.String("node", "localhost:9990", "api node address")
     wsAddr = flag.String("ws", ":8080", "http service address")
     mock = flag.Bool("mock", false, "mock mode")
+    mockNetwork_NetId = flag.Int("mock-network-id", 1, "mock network ID")
+    mockNetwork_EpochNumLayers = flag.Int("mock-network-epoch-layers", 288, "mock network Epoch Num Layers")
+    mockNetwork_MaxTransactionsPerSecond = flag.Int("mock-network-txs", 10, "mock network Max Transactions Per Second")
+    mockNetwork_LayerDuration = flag.Int("mock-network-layer-duration", 15, "mock network Layer Duration")
 )
 
 func main() {
@@ -37,7 +41,12 @@ func main() {
 
     history := history.NewHistory(bus)
     if *mock {
-        go history.RunMock()
+        go history.RunMock(
+            *mockNetwork_NetId,
+            *mockNetwork_EpochNumLayers,
+            *mockNetwork_MaxTransactionsPerSecond,
+            *mockNetwork_LayerDuration,
+        )
     } else {
         go history.Run()
     }

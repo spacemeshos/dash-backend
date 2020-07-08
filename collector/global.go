@@ -4,7 +4,7 @@ import (
     "context"
     "io"
 
-    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
+    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 //    sm "github.com/spacemeshos/go-spacemesh/common/types"
 //    "github.com/golang/protobuf/ptypes/empty"
 
@@ -66,7 +66,7 @@ func (c *Collector) transactionsStatePump() error {
 
     stream, err := c.globalClient.TransactionStateStream(context.Background(), &req)
     if err != nil {
-        log.Error("cannot get global state transactions state: %s", err)
+        log.Error("cannot get global state transactions state: %v", err)
         return err
     }
 
@@ -76,11 +76,11 @@ func (c *Collector) transactionsStatePump() error {
             return err
         }
         if err != nil {
-            log.Error("cannot receive TransactionState: %s", err)
+            log.Error("cannot receive TransactionState: %v", err)
             return err
         }
 
-        log.Info("TransactionState: %s, %s", txState.GetId(), txState.GetState())
+        log.Info("TransactionState: %v, %v", txState.GetId(), txState.GetState())
         var id sm.TransactionID
         copy(id[:], txState.GetId().GetId())
 

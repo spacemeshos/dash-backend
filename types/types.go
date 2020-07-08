@@ -3,7 +3,7 @@ package types
 import (
     "encoding/json"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
-    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
+    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 )
 
 const PointsCount = 50

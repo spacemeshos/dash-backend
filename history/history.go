@@ -1,18 +1,19 @@
 package history
 
 import (
-    "context"
+//    "context"
+    "errors"
 //    "reflect"
     "time"
 
-    "github.com/spacemeshos/go-spacemesh/log"
+//    "github.com/spacemeshos/go-spacemesh/log"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
 
-//    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
+//    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/types"
 
-    "go.mongodb.org/mongo-driver/bson"
+//    "go.mongodb.org/mongo-driver/bson"
 )
 
 func (h *History) SetNetworkInfo(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64, layerDuration uint64) {
@@ -157,6 +158,13 @@ func (h *History) pushStatistics() {
     h.bus.Notify <- message.ToJson()
 }
 
+func (h *History) store(epoch *Epoch) error {
+//    if h.storage.db != nil {
+//        return h.storage.putEpoch(epoch)
+//    }
+    return errors.New("No Database")
+}
+
 func (h *History) push(m *types.Message) {
     h.bus.Notify <- m.ToJson()
 }
@@ -170,18 +178,11 @@ func NewHistory(bus *client.Bus) *History {
 }
 
 func (h *History) Run() {
-    err := h.storage.open()
-    if err != nil {
-        panic("Error open MongoDB")
-    }
-    defer h.storage.close()
-    ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-    res, err := h.storage.db.Collection("test").InsertOne(ctx, bson.M{"name": "pi", "value": 3.14159})
-    if err != nil {
-        panic("Error insert into test collection")
-    }
-    id := res.InsertedID
-    log.Info("Test _id: %v", id)
+//    err := h.storage.open()
+//    if err != nil {
+//        panic("Error open MongoDB")
+//    }
+//    defer h.storage.close()
     h.smeshersGeo = append(h.smeshersGeo,
         types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{34.78057, 32.08088}},
         types.Geo{Name: "New York", Coordinates: [2]float64{-74.00597, 40.71427}},

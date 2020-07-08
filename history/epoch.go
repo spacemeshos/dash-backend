@@ -6,7 +6,7 @@ import (
 
     sm "github.com/spacemeshos/go-spacemesh/common/types"
 
-    pb "github.com/spacemeshos/dash-backend/spacemesh/v1"
+    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
     "github.com/spacemeshos/dash-backend/types"
 )
 
@@ -27,6 +27,7 @@ func (epoch *Epoch) end() {
         if epoch.prev != nil {
             epoch.stats.rewards += epoch.prev.stats.rewards
         }
+        epoch.history.store(epoch)
     }
 }
 

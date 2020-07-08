@@ -57,7 +57,7 @@ type Epoch struct {
 
 type History struct {
     bus 	*client.Bus
-    storage	storage
+//    storage	*storage
 
     network	types.NetworkInfo
 
