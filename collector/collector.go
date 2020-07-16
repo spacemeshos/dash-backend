@@ -17,7 +17,7 @@ const (
     streamType_globalState			int = 3
     streamType_node_Error			int = 4
 
-    streamType_count				int = 3
+    streamType_count				int = 2
 )
 
 type Collector struct {
@@ -72,7 +72,7 @@ func (c *Collector) Run() {
         go c.syncStatusPump()
 //        go c.errorPump()
         go c.layersPump()
-        go c.globalStatePump()
+//        go c.globalStatePump()
 
         for ; c.connecting || c.closing || c.online; {
             state := <-c.notify

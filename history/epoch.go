@@ -25,9 +25,18 @@ func (epoch *Epoch) end() {
     log.Info("Epoch: end")
     epoch.confirmed = (epoch.prev == nil) || (epoch.prev != nil && epoch.prev.confirmed)
     if epoch.confirmed {
-        epoch.computeStatistics(&epoch.stats)
+        epoch.computeStatistics(&epoch.stats.current)
         if epoch.prev != nil {
-            epoch.stats.rewards += epoch.prev.stats.rewards
+            epoch.stats.cumulative.capacity     = epoch.stats.current.capacity
+            epoch.stats.cumulative.decentral    = epoch.stats.current.decentral
+            epoch.stats.cumulative.smeshers     = epoch.prev.stats.cumulative.smeshers + epoch.stats.current.smeshers
+            epoch.stats.cumulative.transactions = epoch.prev.stats.cumulative.transactions + epoch.stats.current.transactions
+            epoch.stats.cumulative.accounts     = epoch.stats.current.accounts
+            epoch.stats.cumulative.circulation  = epoch.stats.current.circulation
+            epoch.stats.cumulative.rewards      = epoch.prev.stats.cumulative.rewards + epoch.stats.current.rewards
+            epoch.stats.cumulative.security     = epoch.prev.stats.current.security
+        } else {
+            epoch.stats.cumulative = epoch.stats.current
         }
         epoch.history.store(epoch)
     }
@@ -67,6 +76,7 @@ func (epoch *Epoch) addLayer(l *types.Layer) {
         if epoch.lastConfirmedLayer == nil || epoch.lastConfirmedLayer.Number < l.Number {
             epoch.lastConfirmedLayer = layer
         }
+        layer.Print()
         if uint64(len(epoch.layers)) == epoch.history.network.EpochNumLayers && allLayersConfirmed(epoch.layers) {
             epoch.end()
         }
@@ -74,7 +84,7 @@ func (epoch *Epoch) addLayer(l *types.Layer) {
 }
 
 func (epoch *Epoch) addReward(reward uint64) {
-    epoch.stats.rewards += reward
+    epoch.stats.current.rewards += reward
 }
 
 func (epoch *Epoch) addTransactionReceipt(txReceipt *types.TransactionReceipt) {
@@ -91,7 +101,7 @@ func getTransactionsCount(layer *types.Layer) uint64 {
     return uint64(len(layer.Transactions))
 }
 
-func (epoch *Epoch) computeStatistics(stats *Stats) {
+func (epoch *Epoch) computeStatistics(stats *Statistics) {
     // log.Info("Epoch: computeStatistics")
     duration := float64(epoch.history.network.LayerDuration) * float64(len(epoch.layers))
     if duration > 0 && epoch.history.network.MaxTransactionsPerSecond > 0 {
@@ -105,6 +115,7 @@ func (epoch *Epoch) computeStatistics(stats *Stats) {
         for _, atx := range layer.Activations {
             smesher, ok := epoch.smeshers[atx.Smesher_id]
             if ok {
+                stats.security += atx.Commitment_size
                 smesher.Commitment_size = atx.Commitment_size
             } else {
                 epoch.smeshers[atx.Smesher_id] = &types.Smesher{Id: atx.Smesher_id, Commitment_size: atx.Commitment_size}
@@ -121,10 +132,7 @@ func (epoch *Epoch) computeStatistics(stats *Stats) {
             stats.circulation += uint64(account.Balance)
         }
     }
-    stats.rewards = epoch.stats.rewards
-    if epoch.prev != nil {
-        stats.security = epoch.prev.stats.security
-    }
+    stats.rewards = epoch.stats.current.rewards
     // log.Info("Epoch Statistics:")
     // log.Info("    capacity: %v", stats.capacity)
     // log.Info("    decentral: %v", stats.decentral)
@@ -136,12 +144,25 @@ func (epoch *Epoch) computeStatistics(stats *Stats) {
     // log.Info("    security: %v", stats.security)
 }
 
-func (epoch *Epoch) GetStatistics(stats *Stats) {
+func (epoch *Epoch) GetStatistics(stats *Statistics) {
     log.Info("Epoch: GetStatistics for epoch %v", epoch.number)
     if epoch.confirmed {
-        *stats = epoch.stats
+        *stats = epoch.stats.cumulative
     } else {
-        epoch.computeStatistics(stats)
+        var current Statistics
+        epoch.computeStatistics(&current)
+        if epoch.prev != nil {
+            stats.capacity     = current.capacity
+            stats.decentral    = current.decentral
+            stats.smeshers     = epoch.prev.stats.cumulative.smeshers + current.smeshers
+            stats.transactions = epoch.prev.stats.cumulative.transactions + current.transactions
+            stats.accounts     = current.accounts
+            stats.circulation  = current.circulation
+            stats.rewards      = epoch.prev.stats.cumulative.rewards + current.rewards
+            stats.security     = epoch.prev.stats.current.security
+        } else {
+            *stats = current
+        }
     }
 }
 

@@ -114,6 +114,7 @@ type Transaction interface {
     GetID() *sm.TransactionID
     GetResult() pb.TransactionReceipt_TransactionResult
     SetResult(result pb.TransactionReceipt_TransactionResult)
+    Print()
 }
 
 type TransactionBase struct {

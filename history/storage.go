@@ -54,14 +54,24 @@ func (s *storage) getEpoch(number uint64) (*Epoch, error) {
         confirmed: doc.Lookup("confirmed").Boolean(),
     }
     stats := doc.Lookup("stats").Document()
-    epoch.stats.capacity = uint64(stats.Lookup("capacity").Int64())
-    epoch.stats.decentral = uint64(stats.Lookup("decentral").Int64())
-    epoch.stats.smeshers = uint64(stats.Lookup("smeshers").Int64())
-    epoch.stats.transactions = uint64(stats.Lookup("transactions").Int64())
-    epoch.stats.accounts = uint64(stats.Lookup("accounts").Int64())
-    epoch.stats.circulation = uint64(stats.Lookup("circulation").Int64())
-    epoch.stats.rewards = uint64(stats.Lookup("rewards").Int64())
-    epoch.stats.security = uint64(stats.Lookup("security").Int64())
+    current := stats.Lookup("current").Document()
+    epoch.stats.current.capacity = uint64(current.Lookup("capacity").Int64())
+    epoch.stats.current.decentral = uint64(current.Lookup("decentral").Int64())
+    epoch.stats.current.smeshers = uint64(current.Lookup("smeshers").Int64())
+    epoch.stats.current.transactions = uint64(current.Lookup("transactions").Int64())
+    epoch.stats.current.accounts = uint64(current.Lookup("accounts").Int64())
+    epoch.stats.current.circulation = uint64(current.Lookup("circulation").Int64())
+    epoch.stats.current.rewards = uint64(current.Lookup("rewards").Int64())
+    epoch.stats.current.security = uint64(current.Lookup("security").Int64())
+    cumulative := stats.Lookup("cumulative").Document()
+    epoch.stats.cumulative.capacity = uint64(cumulative.Lookup("capacity").Int64())
+    epoch.stats.cumulative.decentral = uint64(cumulative.Lookup("decentral").Int64())
+    epoch.stats.cumulative.smeshers = uint64(cumulative.Lookup("smeshers").Int64())
+    epoch.stats.cumulative.transactions = uint64(cumulative.Lookup("transactions").Int64())
+    epoch.stats.cumulative.accounts = uint64(cumulative.Lookup("accounts").Int64())
+    epoch.stats.cumulative.circulation = uint64(cumulative.Lookup("circulation").Int64())
+    epoch.stats.cumulative.rewards = uint64(cumulative.Lookup("rewards").Int64())
+    epoch.stats.cumulative.security = uint64(cumulative.Lookup("security").Int64())
     return epoch, nil
 }
 
@@ -72,14 +82,26 @@ func (s *storage) putEpoch(epoch *Epoch) error {
         {"number", epoch.number},
         {"confirmed", epoch.confirmed},
         {"stats", bson.D{
-            {"capacity", epoch.stats.capacity},
-            {"decentral", epoch.stats.decentral},
-            {"smeshers", epoch.stats.smeshers},
-            {"transactions", epoch.stats.transactions},
-            {"accounts", epoch.stats.accounts},
-            {"circulation", epoch.stats.circulation},
-            {"rewards", epoch.stats.rewards},
-            {"security", epoch.stats.security},
+            {"current",  bson.D{
+                {"capacity", epoch.stats.current.capacity},
+                {"decentral", epoch.stats.current.decentral},
+                {"smeshers", epoch.stats.current.smeshers},
+                {"transactions", epoch.stats.current.transactions},
+                {"accounts", epoch.stats.current.accounts},
+                {"circulation", epoch.stats.current.circulation},
+                {"rewards", epoch.stats.current.rewards},
+                {"security", epoch.stats.current.security},
+            }},
+            {"cumulative",  bson.D{
+                {"capacity", epoch.stats.cumulative.capacity},
+                {"decentral", epoch.stats.cumulative.decentral},
+                {"smeshers", epoch.stats.cumulative.smeshers},
+                {"transactions", epoch.stats.cumulative.transactions},
+                {"accounts", epoch.stats.cumulative.accounts},
+                {"circulation", epoch.stats.cumulative.circulation},
+                {"rewards", epoch.stats.cumulative.rewards},
+                {"security", epoch.stats.cumulative.security},
+            }},
         }},
     })
     if err != nil {

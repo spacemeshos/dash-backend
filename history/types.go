@@ -8,7 +8,7 @@ import (
     "github.com/spacemeshos/dash-backend/types"
 )
 
-type Stats struct {
+type Statistics struct {
     capacity		uint64	// Average tx/s rate over capacity considering all layers in the current epoch.
     decentral		uint64	// Distribution of storage between all active smeshers.
     smeshers		uint64	// Number of active smeshers in the current epoch.
@@ -40,6 +40,11 @@ def gini(array):
     n = array.shape[0]#number of array elements
     return ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array))) #Gini coefficient
 */
+type Stats struct {
+    current	Statistics
+    cumulative	Statistics
+}
+
 type Epoch struct {
     history	*History
     prev	*Epoch
@@ -67,4 +72,6 @@ type History struct {
     accounts	map[sm.Address]*types.Account
     epochs	map[uint64]*Epoch
     mux 	sync.Mutex
+
+    total	Stats
 }

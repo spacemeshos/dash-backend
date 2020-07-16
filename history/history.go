@@ -30,7 +30,7 @@ func (h *History) SetNetworkInfo(netId uint64, genesisTime uint64, epochNumLayer
     h.network.LayerDuration = layerDuration
 }
 
-func (h *History) GetStatistics(epochNumber uint64, stats *Stats) {
+func (h *History) GetStatistics(epochNumber uint64, stats *Statistics) {
     stats.capacity = 0
     stats.decentral = 0
     stats.smeshers = 0
@@ -113,6 +113,9 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
 }
 
 func (h *History) pushStatistics() {
+    h.mux.Lock()
+    defer h.mux.Unlock()
+
     var i uint64
     var layerNumber int = -1
     var epochNumber int = -1
@@ -141,9 +144,10 @@ func (h *History) pushStatistics() {
     }
 
     if h.epoch != nil && h.epoch.lastLayer != nil {
-        var stats Stats
+        var stats Statistics
         var epochCount uint64
         var epochNumber uint64
+//        var hasNextStats bool
 
         epochNumber = h.epoch.number
         message.Epoch = epochNumber
@@ -171,6 +175,10 @@ func (h *History) pushStatistics() {
             message.Circulation[i].Amt  = stats.circulation
             message.Rewards[i].Amt      = stats.rewards
             message.Security[i].Amt     = stats.security
+//            if hasNextStats {
+//                message.Security[i + 1].Amt     = stats.security
+//            }
+//            hasNextStats = true
             i--
             epochCount--
             epochNumber--
