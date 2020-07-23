@@ -66,7 +66,7 @@ type History struct {
 
     network	types.NetworkInfo
 
-    smeshersGeo	[]types.Geo
+    smeshers	map[types.SmesherID]*types.Smesher
 
     epoch 	*Epoch
     accounts	map[sm.Address]*types.Account

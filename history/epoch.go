@@ -102,7 +102,7 @@ func getTransactionsCount(layer *types.Layer) uint64 {
 }
 
 func (epoch *Epoch) computeStatistics(stats *Statistics) {
-    // log.Info("Epoch: computeStatistics")
+    log.Info("Epoch: computeStatistics")
     duration := float64(epoch.history.network.LayerDuration) * float64(len(epoch.layers))
     if duration > 0 && epoch.history.network.MaxTransactionsPerSecond > 0 {
         stats.capacity = uint64(math.Round(((float64(stats.transactions) / duration) / float64(epoch.history.network.MaxTransactionsPerSecond)) * 100.0))
@@ -118,7 +118,7 @@ func (epoch *Epoch) computeStatistics(stats *Statistics) {
                 stats.security += atx.Commitment_size
                 smesher.Commitment_size = atx.Commitment_size
             } else {
-                epoch.smeshers[atx.Smesher_id] = &types.Smesher{Id: atx.Smesher_id, Commitment_size: atx.Commitment_size}
+                epoch.smeshers[atx.Smesher_id] = epoch.history.addSmesher(&atx.Smesher_id, atx.Commitment_size)
             }
         }
     }
@@ -165,41 +165,3 @@ func (epoch *Epoch) GetStatistics(stats *Statistics) {
         }
     }
 }
-
-/*
-func (s *State) update(layer *types.Layer) {
-    s.layer = layer
-
-    s.stats.capacity = 0
-    s.stats.decentral = 0
-    s.stats.smeshers = 0
-    s.stats.accounts = 0
-    s.stats.transactions = 0
-    s.stats.circulation = 0
-    s.stats.rewards = 0
-    s.stats.security = 0
-
-    for _, block := range layer.Blocks {
-        for _, tx := range block.Transactions {
-            _, ok := s.transactions[*tx.GetID()]
-            if !ok {
-                s.transactions[*tx.GetID()] = tx
-            }
-        }
-    }
-
-    stats.transactions = uint64(len(txs))
-
-    for _, atx := range layer.Activations {
-        history.smeshers[atx.Smesher_id] = atx.Layer
-        atx.Commitment_size
-    }
-
-    for _, account := range accounts {
-        if account.Balance > 0 {
-            s.stats.accounts++
-            s.stats.circulation += uint64(account.Balance)
-        }
-    }
-}
-*/

@@ -79,7 +79,7 @@ func (h *History) AddAccount(account *types.Account) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
-    log.Info("History: add account with balance %v", account.Balance)
+//    log.Info("History: add account with balance %v", account.Balance)
     acc, ok := h.accounts[account.Address]
     if !ok {
         h.accounts[account.Address] = account
@@ -92,7 +92,7 @@ func (h *History) AddReward(reward *types.Reward) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
-    log.Info("History: add reward %v", reward.Total)
+//    log.Info("History: add reward %v", reward.Total)
     epochNumber := uint64(reward.Layer) / h.network.EpochNumLayers
     epoch, ok := h.epochs[epochNumber]
     if ok {
@@ -104,12 +104,42 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
-    log.Info("History: add transaction receipt")
+//    log.Info("History: add transaction receipt")
     epochNumber := uint64(txReceipt.Layer_number) / h.network.EpochNumLayers
     epoch, ok := h.epochs[epochNumber]
     if ok {
         epoch.addTransactionReceipt(txReceipt)
     }
+}
+
+func (h *History) getSmesher(id *types.SmesherID) *types.Smesher {
+    h.mux.Lock()
+    defer h.mux.Unlock()
+
+    log.Info("History: get smesher")
+
+    smesher, ok := h.smeshers[*id]
+    if ok {
+        return smesher
+    } else {
+        return nil
+    }
+}
+
+func (h *History) addSmesher(id *types.SmesherID, commitmentSize uint64) *types.Smesher {
+    h.mux.Lock()
+    defer h.mux.Unlock()
+
+    log.Info("History: add smesher")
+
+    smesher, ok := h.smeshers[*id]
+    if ok {
+        return smesher
+    }
+    smesher = &types.Smesher{Id: *id, Commitment_size: commitmentSize, Geo: getRandomGeo()}
+    log.Info("Add smesher from %v", smesher.Geo)
+    h.smeshers[*id] = smesher
+    return smesher
 }
 
 func (h *History) pushStatistics() {
@@ -132,7 +162,7 @@ func (h *History) pushStatistics() {
     message := &types.Message{}
     message.Network = "TESTNET 0.1"
     message.Age = uint64(time.Now().Unix()) - h.network.GenesisTime
-    message.SmeshersGeo = h.smeshersGeo
+    message.SmeshersGeo = make([]types.Geo, 0)
 
     for i = 0; i < types.PointsCount; i++ {
         message.Smeshers[i].Uv     = uint64(i)
@@ -147,7 +177,6 @@ func (h *History) pushStatistics() {
         var stats Statistics
         var epochCount uint64
         var epochNumber uint64
-//        var hasNextStats bool
 
         epochNumber = h.epoch.number
         message.Epoch = epochNumber
@@ -166,6 +195,15 @@ func (h *History) pushStatistics() {
             message.Decentral = stats.decentral
         }
 
+//        if h.epoch.prev != nil && len(h.epoch.prev.smeshers) > 0 {
+//            var i int
+//            message.SmeshersGeo = make([]types.Geo, len(h.epoch.prev.smeshers))
+//            for _, smesher := range h.epoch.prev.smeshers {
+//                message.SmeshersGeo[i] = smesher.Geo
+//                i++
+//            }
+//        }
+
         for ; epochCount > 0;  {
             h.GetStatistics(epochNumber, &stats)
             log.Info("History: stats for epoch %v: %v", epochNumber, stats)
@@ -175,10 +213,6 @@ func (h *History) pushStatistics() {
             message.Circulation[i].Amt  = stats.circulation
             message.Rewards[i].Amt      = stats.rewards
             message.Security[i].Amt     = stats.security
-//            if hasNextStats {
-//                message.Security[i + 1].Amt     = stats.security
-//            }
-//            hasNextStats = true
             i--
             epochCount--
             epochNumber--
@@ -202,6 +236,7 @@ func (h *History) push(m *types.Message) {
 func NewHistory(bus *client.Bus) *History {
     return &History{
         bus: bus,
+        smeshers: make(map[types.SmesherID]*types.Smesher),
         accounts: make(map[sm.Address]*types.Account),
         epochs: make(map[uint64]*Epoch),
     }
@@ -213,6 +248,10 @@ func (h *History) Run() {
 //        panic("Error open MongoDB")
 //    }
 //    defer h.storage.close()
+    log.Info("Init cities database...")
+    getRandomGeo()
+    log.Info("Done")
+/*
     h.smeshersGeo = append(h.smeshersGeo,
         types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{34.78057, 32.08088}},
         types.Geo{Name: "New York", Coordinates: [2]float64{-74.00597, 40.71427}},
@@ -220,6 +259,7 @@ func (h *History) Run() {
         types.Geo{Name: "Montreal", Coordinates: [2]float64{-73.58781, 45.50884}},
         types.Geo{Name: "Kyiv", Coordinates: [2]float64{30.5238, 50.45466}},
     )
+*/
     for {
         h.pushStatistics()
         time.Sleep(15 * time.Second)

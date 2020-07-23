@@ -6,6 +6,7 @@ import (
 )
 
 func (layer *Layer) Print() {
+/*
     log.Info("Layer %v, status: %v, blocks: %v, txs: %v, activations: %v",
         layer.Number,
         layer.Status,
@@ -19,6 +20,7 @@ func (layer *Layer) Print() {
     for _, block := range layer.Blocks {
         block.Print()
     }
+*/
 }
 
 func (block *Block) Print() {
@@ -55,6 +57,7 @@ func (atx *Activation) Print() {
 //
 
 func PrintLayer(layer *pb.Layer) {
+/*
     log.Info("Layer %v, status: %v, blocks: %v, activations: %v",
         layer.Number,
         layer.Status,
@@ -67,6 +70,7 @@ func PrintLayer(layer *pb.Layer) {
     for _, block := range layer.Blocks {
         PrintBlock(block)
     }
+*/
 }
 
 func PrintBlock(block *pb.Block) {

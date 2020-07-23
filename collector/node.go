@@ -16,7 +16,7 @@ func (c *Collector) syncStart() error {
     req := pb.SyncStartRequest{}
 
     // set timeout
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
     defer cancel()
 
     _, err := c.nodeClient.SyncStart(ctx, &req)
@@ -49,7 +49,7 @@ func (c *Collector) syncStatusPump() error {
     c.syncStart()
 
     for {
-        res, err := stream.Recv()
+        _, err := stream.Recv()
         if err == io.EOF {
             log.Info("syncStatusPump: EOF")
             return err
@@ -59,7 +59,7 @@ func (c *Collector) syncStatusPump() error {
             return err
         }
 
-        log.Info("Node sync status: %v", res.GetStatus())
+//        log.Info("Node sync status: %v", res.GetStatus())
 
 //        switch res.GetStatus() {
 //        case pb.NodeSyncStatus_NOT_SYNCED:
