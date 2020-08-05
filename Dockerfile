@@ -17,7 +17,7 @@ RUN go mod download
 
 RUN go get github.com/golang/snappy@v0.0.1
 
-# This image builds the go-spacemesh server
+# This image builds the dash-backend
 FROM build_base AS server_builder
 # Here we copy the rest of the source code
 COPY . .
@@ -36,6 +36,3 @@ EXPOSE 8080
 
 # profiling port
 EXPOSE 6060
-
-# gRPC port
-EXPOSE 9990

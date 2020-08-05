@@ -3,6 +3,7 @@ package history
 import (
 //    "context"
     "errors"
+    "fmt"
 //    "reflect"
     "time"
 
@@ -12,6 +13,7 @@ import (
 //    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/types"
+    "github.com/spacemeshos/dash-backend/api"
 
 //    "go.mongodb.org/mongo-driver/bson"
 )
@@ -50,7 +52,7 @@ func (h *History) AddLayer(layer *types.Layer) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
-    log.Info("History: add layer %v with status %v", layer.Number, layer.Status)
+//    log.Info("History: add layer %v with status %v", layer.Number, layer.Status)
 
     epochNumber := uint64(layer.Number) / h.network.EpochNumLayers
     epoch, ok := h.epochs[epochNumber]
@@ -79,12 +81,21 @@ func (h *History) AddAccount(account *types.Account) {
     h.mux.Lock()
     defer h.mux.Unlock()
 
-//    log.Info("History: add account with balance %v", account.Balance)
+    log.Info("History: add account with balance %v", account.Balance)
     acc, ok := h.accounts[account.Address]
     if !ok {
         h.accounts[account.Address] = account
     } else {
         acc.Balance = account.Balance
+    }
+}
+
+func (h *History) addAccountAmount(address *sm.Address, amount types.Amount) {
+    acc, ok := h.accounts[*address]
+    if !ok {
+        h.accounts[*address] = &types.Account{*address, 0, amount}
+    } else {
+        acc.Balance += amount
     }
 }
 
@@ -94,6 +105,7 @@ func (h *History) AddReward(reward *types.Reward) {
 
 //    log.Info("History: add reward %v", reward.Total)
     epochNumber := uint64(reward.Layer) / h.network.EpochNumLayers
+    h.addAccountAmount(&reward.Coinbase, reward.Total)
     epoch, ok := h.epochs[epochNumber]
     if ok {
         epoch.addReward(uint64(reward.Total))
@@ -113,11 +125,6 @@ func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
 }
 
 func (h *History) getSmesher(id *types.SmesherID) *types.Smesher {
-    h.mux.Lock()
-    defer h.mux.Unlock()
-
-    log.Info("History: get smesher")
-
     smesher, ok := h.smeshers[*id]
     if ok {
         return smesher
@@ -127,17 +134,12 @@ func (h *History) getSmesher(id *types.SmesherID) *types.Smesher {
 }
 
 func (h *History) addSmesher(id *types.SmesherID, commitmentSize uint64) *types.Smesher {
-    h.mux.Lock()
-    defer h.mux.Unlock()
-
-    log.Info("History: add smesher")
-
     smesher, ok := h.smeshers[*id]
     if ok {
         return smesher
     }
     smesher = &types.Smesher{Id: *id, Commitment_size: commitmentSize, Geo: getRandomGeo()}
-    log.Info("Add smesher from %v", smesher.Geo)
+//    log.Info("Add smesher from %v", smesher.Geo)
     h.smeshers[*id] = smesher
     return smesher
 }
@@ -147,6 +149,7 @@ func (h *History) pushStatistics() {
     defer h.mux.Unlock()
 
     var i uint64
+/*
     var layerNumber int = -1
     var epochNumber int = -1
 
@@ -158,13 +161,13 @@ func (h *History) pushStatistics() {
     }
 
     log.Info("History: pushStatistics %v/%v", layerNumber, epochNumber)
-
-    message := &types.Message{}
+*/
+    message := &api.Message{}
     message.Network = "TESTNET 0.1"
     message.Age = uint64(time.Now().Unix()) - h.network.GenesisTime
     message.SmeshersGeo = make([]types.Geo, 0)
 
-    for i = 0; i < types.PointsCount; i++ {
+    for i = 0; i < api.PointsCount; i++ {
         message.Smeshers[i].Uv     = uint64(i)
         message.Transactions[i].Uv = uint64(i)
         message.Accounts[i].Uv     = uint64(i)
@@ -182,10 +185,10 @@ func (h *History) pushStatistics() {
         message.Epoch = epochNumber
         message.Layer = uint64(h.epoch.lastLayer.Number)
 
-        i = types.PointsCount - 1
+        i = api.PointsCount - 1
         epochCount = h.epoch.number + 1
-        if epochCount > types.PointsCount {
-            epochCount = types.PointsCount
+        if epochCount > api.PointsCount {
+            epochCount = api.PointsCount
         }
 
         h.GetStatistics(epochNumber, &stats)
@@ -195,14 +198,14 @@ func (h *History) pushStatistics() {
             message.Decentral = stats.decentral
         }
 
-//        if h.epoch.prev != nil && len(h.epoch.prev.smeshers) > 0 {
-//            var i int
-//            message.SmeshersGeo = make([]types.Geo, len(h.epoch.prev.smeshers))
-//            for _, smesher := range h.epoch.prev.smeshers {
-//                message.SmeshersGeo[i] = smesher.Geo
-//                i++
-//            }
-//        }
+        if h.epoch.prev != nil && len(h.epoch.prev.smeshers) > 0 {
+            var i int
+            message.SmeshersGeo = make([]types.Geo, len(h.epoch.prev.smeshers))
+            for _, smesher := range h.epoch.prev.smeshers {
+                message.SmeshersGeo[i] = smesher.Geo
+                i++
+            }
+        }
 
         for ; epochCount > 0;  {
             h.GetStatistics(epochNumber, &stats)
@@ -219,6 +222,8 @@ func (h *History) pushStatistics() {
         }
     }
 
+    fmt.Print(message, "\n")
+
     h.bus.Notify <- message.ToJson()
 }
 
@@ -229,7 +234,7 @@ func (h *History) store(epoch *Epoch) error {
     return errors.New("No Database")
 }
 
-func (h *History) push(m *types.Message) {
+func (h *History) push(m *api.Message) {
     h.bus.Notify <- m.ToJson()
 }
 
@@ -248,20 +253,12 @@ func (h *History) Run() {
 //        panic("Error open MongoDB")
 //    }
 //    defer h.storage.close()
-    log.Info("Init cities database...")
-    getRandomGeo()
-    log.Info("Done")
-/*
-    h.smeshersGeo = append(h.smeshersGeo,
-        types.Geo{Name: "Tel Aviv", Coordinates: [2]float64{34.78057, 32.08088}},
-        types.Geo{Name: "New York", Coordinates: [2]float64{-74.00597, 40.71427}},
-        types.Geo{Name: "Chernihiv", Coordinates: [2]float64{31.28487, 51.50551}},
-        types.Geo{Name: "Montreal", Coordinates: [2]float64{-73.58781, 45.50884}},
-        types.Geo{Name: "Kyiv", Coordinates: [2]float64{30.5238, 50.45466}},
-    )
-*/
     for {
+        if h.network.LayerDuration > 0 {
+            time.Sleep(time.Duration(h.network.LayerDuration) * time.Second / 2)
+        } else {
+            time.Sleep(15 * time.Second)
+        }
         h.pushStatistics()
-        time.Sleep(15 * time.Second)
     }
 }

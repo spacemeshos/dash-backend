@@ -43,6 +43,7 @@ func (c *Collector) globalStatePump() error {
             if account := item.GetAccount(); account != nil {
                 c.history.AddAccount(types.NewAccount(account))
             } else if reward := item.GetReward(); reward != nil {
+                types.PrintReward(reward)
                 c.history.AddReward(types.NewReward(reward))
             } else if receipt := item.GetReceipt(); receipt != nil {
                 c.history.AddTransactionReceipt(types.NewTransactionReceipt(receipt))

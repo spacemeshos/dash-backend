@@ -49,7 +49,7 @@ type Epoch struct {
     history	*History
     prev	*Epoch
     number	uint64
-    confirmed	bool
+    ended	bool
     smeshers	map[types.SmesherID]*types.Smesher
 
     layers 		map[sm.LayerID]*types.Layer

@@ -51,7 +51,7 @@ func (s *storage) getEpoch(number uint64) (*Epoch, error) {
     doc := cursor.Current
     epoch := &Epoch{
         number: number,
-        confirmed: doc.Lookup("confirmed").Boolean(),
+        ended: doc.Lookup("ended").Boolean(),
     }
     stats := doc.Lookup("stats").Document()
     current := stats.Lookup("current").Document()
@@ -80,7 +80,7 @@ func (s *storage) putEpoch(epoch *Epoch) error {
     defer cancel()
     res, err := s.db.Collection("epoches").InsertOne(ctx, bson.D{
         {"number", epoch.number},
-        {"confirmed", epoch.confirmed},
+        {"ended", epoch.ended},
         {"stats", bson.D{
             {"current",  bson.D{
                 {"capacity", epoch.stats.current.capacity},

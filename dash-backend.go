@@ -8,8 +8,6 @@ import (
 
     "github.com/spacemeshos/go-spacemesh/log"
 
-//    "github.com/spacemeshos/dash-backend/api"
-
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/collector"
     "github.com/spacemeshos/dash-backend/history"
@@ -47,8 +45,14 @@ func main() {
     http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
         client.ServeWs(bus, w, r)
     })
+
+    http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+        client.ServeWs(bus, w, r)
+    })
+
     err := http.ListenAndServe(*wsAddr, nil)
     if err != nil {
         log.Error("ListenAndServe: ", err)
     }
 }
+

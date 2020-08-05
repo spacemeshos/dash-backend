@@ -1,37 +1,13 @@
 package types
 
 import (
-    "encoding/json"
     sm "github.com/spacemeshos/go-spacemesh/common/types"
     pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 )
 
-const PointsCount = 50
-
-type Point struct {
-    Uv	uint64 `json:"uv"`
-    Amt	uint64 `json:"amt"`
-}
-
 type Geo struct {
     Name	string `json:"name"`
     Coordinates	[2]float64 `json:"coordinates"`
-}
-
-type Message struct {
-    Network	string `json:"network"`
-    Age		uint64 `json:"age"`
-    Layer	uint64 `json:"layer"`
-    Epoch	uint64 `json:"epoch"`
-    Capacity	uint64 `json:"capacity"`
-    Decentral	uint64 `json:"decentral"`
-    SmeshersGeo		[]Geo   `json:"smeshersGeo"`
-    Smeshers		[PointsCount]Point `json:"smeshers"`
-    Transactions	[PointsCount]Point `json:"transactions"`
-    Accounts		[PointsCount]Point `json:"accounts"`
-    Circulation		[PointsCount]Point `json:"circulation"`
-    Rewards		[PointsCount]Point `json:"rewards"`
-    Security		[PointsCount]Point `json:"security"`
 }
 
 type NetworkInfo struct {
@@ -159,11 +135,6 @@ type Layer struct {
     Activations		[]*Activation	// list of layer's activations
     RootStateHash	[]byte		// when available - the root state hash of global state in this layer
     Transactions	map[sm.TransactionID]Transaction
-}
-
-func (m *Message) ToJson() []byte {
-    b, _ := json.Marshal(m)
-    return b
 }
 
 func (tx *TransactionBase) GetID() *sm.TransactionID {
