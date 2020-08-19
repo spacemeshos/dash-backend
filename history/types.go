@@ -3,7 +3,6 @@ package history
 import (
     "sync"
 
-    sm "github.com/spacemeshos/go-spacemesh/common/types"
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/types"
 )
@@ -52,7 +51,7 @@ type Epoch struct {
     ended	bool
     smeshers	map[types.SmesherID]*types.Smesher
 
-    layers 		map[sm.LayerID]*types.Layer
+    layers 		map[types.LayerID]*types.Layer
     lastLayer		*types.Layer
     lastApprovedLayer	*types.Layer
     lastConfirmedLayer	*types.Layer
@@ -69,7 +68,7 @@ type History struct {
     smeshers	map[types.SmesherID]*types.Smesher
 
     epoch 	*Epoch
-    accounts	map[sm.Address]*types.Account
+    accounts	map[types.Address]*types.Account
     epochs	map[uint64]*Epoch
     mux 	sync.Mutex
 

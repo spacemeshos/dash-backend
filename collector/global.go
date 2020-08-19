@@ -5,16 +5,13 @@ import (
     "io"
 
     pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
-//    sm "github.com/spacemeshos/go-spacemesh/common/types"
-//    "github.com/golang/protobuf/ptypes/empty"
-
     "github.com/spacemeshos/go-spacemesh/log"
 
     "github.com/spacemeshos/dash-backend/types"
 )
 
 func (c *Collector) globalStatePump() error {
-    req := pb.GlobalStateStreamRequest{GlobalStateDataItemFlags: uint32(pb.GlobalStateDataItemFlag_GLOBAL_STATE_DATA_ITEM_FLAG_REWARD) | uint32(pb.GlobalStateDataItemFlag_GLOBAL_STATE_DATA_ITEM_FLAG_ACCOUNT)}
+    req := pb.GlobalStateStreamRequest{GlobalStateDataFlags: uint32(pb.GlobalStateDataFlag_GLOBAL_STATE_DATA_FLAG_REWARD) | uint32(pb.GlobalStateDataFlag_GLOBAL_STATE_DATA_FLAG_ACCOUNT)}
 
     log.Info("Start global state pump")
     defer func() {
@@ -39,15 +36,14 @@ func (c *Collector) globalStatePump() error {
             log.Error("cannot receive Global state data: %v", err)
             return err
         }
-        for _, item := range response.GetDataItem() {
-            if account := item.GetAccount(); account != nil {
-                c.history.AddAccount(types.NewAccount(account))
-            } else if reward := item.GetReward(); reward != nil {
-                types.PrintReward(reward)
-                c.history.AddReward(types.NewReward(reward))
-            } else if receipt := item.GetReceipt(); receipt != nil {
-                c.history.AddTransactionReceipt(types.NewTransactionReceipt(receipt))
-            }
+        item := response.GetDatum()
+        if account := item.GetAccountWrapper(); account != nil {
+            c.listener.OnAccount(account)
+        } else if reward := item.GetReward(); reward != nil {
+            types.PrintReward(reward)
+            c.listener.OnReward(reward)
+        } else if receipt := item.GetReceipt(); receipt != nil {
+            c.listener.OnTransactionReceipt(receipt)
         }
     }
 

@@ -21,7 +21,7 @@ func (c *Collector) getNetworkInfo() error {
         return err
     }
 
-    netId, err := c.meshClient.NetId(ctx, &pb.NetIdRequest{})
+    netId, err := c.meshClient.NetID(ctx, &pb.NetIDRequest{})
     if err != nil {
         log.Error("cannot get NetId: %v", err)
 //        return err
@@ -39,7 +39,7 @@ func (c *Collector) getNetworkInfo() error {
         return err
     }
 
-    c.history.SetNetworkInfo(
+    c.listener.OnNetworkInfo(
         netId.GetNetid().GetValue(),
         genesisTime.GetUnixtime().GetValue(),
         epochNumLayers.GetNumlayers().GetValue(),
@@ -79,7 +79,7 @@ func (c *Collector) layersPump() error {
         layer := response.GetLayer()
 //        log.Info("Mesh layer: %v", layer.GetNumber())
         types.PrintLayer(layer)
-        c.history.AddLayer(types.NewLayer(layer))
+        c.listener.OnLayer(layer)
     }
 
     return nil

@@ -3,7 +3,6 @@ package history
 import (
     "math"
 
-    sm "github.com/spacemeshos/go-spacemesh/common/types"
     "github.com/spacemeshos/go-spacemesh/log"
 
     pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
@@ -16,7 +15,7 @@ func newEpoch(h *History, number uint64, prev *Epoch) *Epoch {
         prev: prev,
         number: number,
         smeshers: make(map[types.SmesherID]*types.Smesher),
-        layers: make(map[sm.LayerID]*types.Layer),
+        layers: make(map[types.LayerID]*types.Layer),
     }
 }
 
@@ -39,7 +38,7 @@ func (epoch *Epoch) end() {
     epoch.history.store(epoch)
 }
 
-func allLayersApproved(layers map[sm.LayerID]*types.Layer) bool {
+func allLayersApproved(layers map[types.LayerID]*types.Layer) bool {
     for _, layer := range layers {
         if layer.Status != pb.Layer_LAYER_STATUS_APPROVED {
             log.Info("Layer %v not approved", layer.Number)

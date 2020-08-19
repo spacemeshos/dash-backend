@@ -98,7 +98,7 @@ func (c *Collector) errorPump() error {
             return err
         }
 
-        log.Info("Node error: %v", res.GetError().GetMessage())
+        log.Info("Node error: %v", res.GetError().GetMsg())
     }
 
     return nil

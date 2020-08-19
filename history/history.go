@@ -8,9 +8,8 @@ import (
     "time"
 
     "github.com/spacemeshos/go-spacemesh/log"
-    sm "github.com/spacemeshos/go-spacemesh/common/types"
 
-//    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
+    pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
     "github.com/spacemeshos/dash-backend/client"
     "github.com/spacemeshos/dash-backend/types"
     "github.com/spacemeshos/dash-backend/api"
@@ -18,7 +17,7 @@ import (
 //    "go.mongodb.org/mongo-driver/bson"
 )
 
-func (h *History) SetNetworkInfo(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64, layerDuration uint64) {
+func (h *History) OnNetworkInfo(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64, layerDuration uint64) {
     h.network.NetId = netId
     h.network.GenesisTime = genesisTime
     if epochNumLayers == 0 {
@@ -48,9 +47,11 @@ func (h *History) GetStatistics(epochNumber uint64, stats *Statistics) {
     }
 }
 
-func (h *History) AddLayer(layer *types.Layer) {
+func (h *History) OnLayer(pbLayer *pb.Layer) {
     h.mux.Lock()
     defer h.mux.Unlock()
+
+    layer := types.NewLayer(pbLayer)
 
 //    log.Info("History: add layer %v with status %v", layer.Number, layer.Status)
 
@@ -77,9 +78,11 @@ func (h *History) AddLayer(layer *types.Layer) {
     epoch.addLayer(layer)
 }
 
-func (h *History) AddAccount(account *types.Account) {
+func (h *History) OnAccount(pbAccount *pb.Account) {
     h.mux.Lock()
     defer h.mux.Unlock()
+
+    account := types.NewAccount(pbAccount)
 
     log.Info("History: add account with balance %v", account.Balance)
     acc, ok := h.accounts[account.Address]
@@ -90,7 +93,7 @@ func (h *History) AddAccount(account *types.Account) {
     }
 }
 
-func (h *History) addAccountAmount(address *sm.Address, amount types.Amount) {
+func (h *History) addAccountAmount(address *types.Address, amount types.Amount) {
     acc, ok := h.accounts[*address]
     if !ok {
         h.accounts[*address] = &types.Account{*address, 0, amount}
@@ -99,9 +102,11 @@ func (h *History) addAccountAmount(address *sm.Address, amount types.Amount) {
     }
 }
 
-func (h *History) AddReward(reward *types.Reward) {
+func (h *History) OnReward(pbReward *pb.Reward) {
     h.mux.Lock()
     defer h.mux.Unlock()
+
+    reward := types.NewReward(pbReward)
 
 //    log.Info("History: add reward %v", reward.Total)
     epochNumber := uint64(reward.Layer) / h.network.EpochNumLayers
@@ -112,9 +117,11 @@ func (h *History) AddReward(reward *types.Reward) {
     }
 }
 
-func (h *History) AddTransactionReceipt(txReceipt *types.TransactionReceipt) {
+func (h *History) OnTransactionReceipt(pbTxReceipt *pb.TransactionReceipt) {
     h.mux.Lock()
     defer h.mux.Unlock()
+
+    txReceipt := types.NewTransactionReceipt(pbTxReceipt)
 
 //    log.Info("History: add transaction receipt")
     epochNumber := uint64(txReceipt.Layer_number) / h.network.EpochNumLayers
@@ -242,7 +249,7 @@ func NewHistory(bus *client.Bus) *History {
     return &History{
         bus: bus,
         smeshers: make(map[types.SmesherID]*types.Smesher),
-        accounts: make(map[sm.Address]*types.Account),
+        accounts: make(map[types.Address]*types.Account),
         epochs: make(map[uint64]*Epoch),
     }
 }

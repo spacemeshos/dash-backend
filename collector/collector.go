@@ -8,7 +8,7 @@ import (
 
     "github.com/spacemeshos/go-spacemesh/log"
 
-    "github.com/spacemeshos/dash-backend/history"
+//    "github.com/spacemeshos/dash-backend/types"
 )
 
 const (
@@ -20,9 +20,17 @@ const (
     streamType_count				int = 3
 )
 
+type Listener interface {
+    OnNetworkInfo(netId uint64, genesisTime uint64, epochNumLayers uint64, maxTransactionsPerSecond uint64, layerDuration uint64)
+    OnLayer(layer *pb.Layer)
+    OnAccount(account *pb.Account)
+    OnReward(reward *pb.Reward)
+    OnTransactionReceipt(receipt *pb.TransactionReceipt)
+}
+
 type Collector struct {
     apiUrl	string
-    history	*history.History
+    listener	Listener
 
     nodeClient		pb.NodeServiceClient
     meshClient		pb.MeshServiceClient
@@ -38,10 +46,10 @@ type Collector struct {
     notify chan int
 }
 
-func NewCollector(nodeAddress string, history *history.History) *Collector {
+func NewCollector(nodeAddress string, listener Listener) *Collector {
     return &Collector{
         apiUrl:  nodeAddress,
-        history: history,
+        listener: listener,
         notify:  make(chan int),
     }
 }
