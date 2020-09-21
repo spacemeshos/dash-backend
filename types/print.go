@@ -57,7 +57,6 @@ func (atx *Activation) Print() {
 //
 
 func PrintLayer(layer *pb.Layer) {
-/*
     log.Info("Layer %v, status: %v, blocks: %v, activations: %v",
         layer.Number,
         layer.Status,
@@ -70,7 +69,6 @@ func PrintLayer(layer *pb.Layer) {
     for _, block := range layer.Blocks {
         PrintBlock(block)
     }
-*/
 }
 
 func PrintBlock(block *pb.Block) {
