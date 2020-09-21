@@ -8,17 +8,17 @@ import (
 const PointsCount = 50
 
 type Point struct {
-    Uv	uint64 `json:"uv"`
-    Amt	uint64 `json:"amt"`
+    Uv	int `json:"uv"`
+    Amt	int64 `json:"amt"`
 }
 
 type Message struct {
     Network	string `json:"network"`
-    Age		uint64 `json:"age"`
-    Layer	uint64 `json:"layer"`
-    Epoch	uint64 `json:"epoch"`
-    Capacity	uint64 `json:"capacity"`
-    Decentral	uint64 `json:"decentral"`
+    Age		uint32 `json:"age"`
+    Layer	uint32 `json:"layer"`
+    Epoch	uint32 `json:"epoch"`
+    Capacity	int64 `json:"capacity"`
+    Decentral	int64 `json:"decentral"`
     SmeshersGeo		[]types.Geo        `json:"smeshersGeo"`
     Smeshers		[PointsCount]Point `json:"smeshers"`
     Transactions	[PointsCount]Point `json:"transactions"`
