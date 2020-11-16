@@ -13,7 +13,7 @@ require (
 	github.com/klauspost/compress v1.11.0 // indirect
 	github.com/spacemeshos/api/release/go v0.0.0-20200811160843-9701df00c65a
 	github.com/spacemeshos/ed25519 v0.0.0-20200604074309-d72da3b5f487
-	github.com/spacemeshos/explorer-backend v0.0.0-20200921081922-1c4ab6c91a6b
+	github.com/spacemeshos/explorer-backend v0.0.0-20201021071548-7aa3614d7023
 	github.com/spacemeshos/go-spacemesh v0.1.14
 	github.com/spacemeshos/merkle-tree v0.0.0-20200107164308-9dfa6f215af5 // indirect
 	github.com/spacemeshos/post v0.0.0-20200727125132-30c684069b40 // indirect

@@ -64,9 +64,13 @@ func NewHistory(ctx context.Context, bus *client.Bus, dbUrl string, dbName strin
 }
 
 func (h *History) Run() {
+    period := time.Duration(h.storage.NetworkInfo.LayerDuration) * time.Second / 2
+    if period > time.Minute {
+        period = time.Minute
+    }
     for {
         if h.storage.NetworkInfo.LayerDuration > 0 {
-            time.Sleep(time.Duration(h.storage.NetworkInfo.LayerDuration) * time.Second / 2)
+            time.Sleep(period)
         } else {
             time.Sleep(15 * time.Second)
         }
@@ -86,9 +90,30 @@ func getObject(d *bson.D, name string) *bson.E {
 func (h *History) pushStatistics() {
     var i int
 
+    now := uint32(time.Now().Unix())
     message := &api.Message{}
-    message.Network = ""
-    message.Age = uint32(time.Now().Unix()) - h.storage.NetworkInfo.GenesisTime
+
+    networkInfo, err := h.storage.GetNetworkInfo(h.ctx)
+    if err == nil {
+        message.Network = networkInfo.NetId
+        message.Age = now - networkInfo.GenesisTime
+        message.MaxCapacity = networkInfo.MaxTransactionsPerSecond
+        message.GenesisTime = networkInfo.GenesisTime
+        message.EpochNumLayers = networkInfo.EpochNumLayers
+        message.LayerDuration = networkInfo.LayerDuration
+        message.LastLayer = networkInfo.LastLayer
+        message.LastLayerTimestamp = networkInfo.LastLayerTimestamp
+        message.LastApprovedLayer = networkInfo.LastApprovedLayer
+        message.LastConfirmedLayer = networkInfo.LastConfirmedLayer
+    } else {
+        message.Network = h.storage.NetworkInfo.NetId
+        message.Age = now - h.storage.NetworkInfo.GenesisTime
+        message.MaxCapacity = h.storage.NetworkInfo.MaxTransactionsPerSecond
+        message.GenesisTime = h.storage.NetworkInfo.GenesisTime
+        message.EpochNumLayers = h.storage.NetworkInfo.EpochNumLayers
+        message.LayerDuration = h.storage.NetworkInfo.LayerDuration
+    }
+
     message.SmeshersGeo = make([]types.Geo, 0)
 
     for i = 0; i < api.PointsCount; i++ {
@@ -105,16 +130,31 @@ func (h *History) pushStatistics() {
 
     epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetLimit(api.PointsCount).SetProjection(bson.D{{"_id", 0}}))
 
-    if err == nil {
+    if err == nil && len(epochs) > 0 {
+        message.Capacity = epochs[0].Stats.Cumulative.Capacity
+        message.Decentral = epochs[0].Stats.Cumulative.Decentral
         i = api.PointsCount - 1
         for _, epoch := range epochs {
             log.Info("History: stats for epoch %v: %v", epoch.Number, epoch.Stats)
-            message.Smeshers[i].Amt     = epoch.Stats.Cumulative.Smeshers
-            message.Transactions[i].Amt = epoch.Stats.Cumulative.Transactions
-            message.Accounts[i].Amt     = epoch.Stats.Cumulative.Accounts
-            message.Circulation[i].Amt  = epoch.Stats.Cumulative.Circulation
-            message.Rewards[i].Amt      = epoch.Stats.Cumulative.Rewards
-            message.Security[i].Amt     = epoch.Stats.Cumulative.Security
+            age := now - epoch.Start
+            message.Smeshers[i].Amt       = epoch.Stats.Cumulative.Smeshers
+            message.Smeshers[i].Epoch     = epoch.Number
+            message.Smeshers[i].Age       = age
+            message.Transactions[i].Amt   = epoch.Stats.Cumulative.Transactions
+            message.Transactions[i].Epoch = epoch.Number
+            message.Transactions[i].Age   = age
+            message.Accounts[i].Amt       = epoch.Stats.Cumulative.Accounts
+            message.Accounts[i].Epoch     = epoch.Number
+            message.Accounts[i].Age       = age
+            message.Circulation[i].Amt    = epoch.Stats.Cumulative.Circulation
+            message.Circulation[i].Epoch  = epoch.Number
+            message.Circulation[i].Age    = age
+            message.Rewards[i].Amt        = epoch.Stats.Cumulative.Rewards
+            message.Rewards[i].Epoch      = epoch.Number
+            message.Rewards[i].Age        = age
+            message.Security[i].Amt       = epoch.Stats.Cumulative.Security
+            message.Security[i].Epoch     = epoch.Number
+            message.Security[i].Age       = age
             i--
         }
     }
