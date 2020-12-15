@@ -1,8 +1,8 @@
 name: Publish
 
-on: push
-#  release:
-#    types: [published]
+on:
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -14,5 +14,5 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: valar999sm/dash
+          repository: valar999sm/dash-backend
           tag_with_ref: true
