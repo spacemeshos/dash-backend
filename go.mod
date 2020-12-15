@@ -11,20 +11,16 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/klauspost/compress v1.11.0 // indirect
-	github.com/spacemeshos/api/release/go v0.0.0-20200811160843-9701df00c65a
-	github.com/spacemeshos/ed25519 v0.0.0-20200604074309-d72da3b5f487
-	github.com/spacemeshos/explorer-backend v0.0.0-20201021071548-7aa3614d7023
-	github.com/spacemeshos/go-spacemesh v0.1.14
-	github.com/spacemeshos/merkle-tree v0.0.0-20200107164308-9dfa6f215af5 // indirect
-	github.com/spacemeshos/post v0.0.0-20200727125132-30c684069b40 // indirect
+	github.com/spacemeshos/api/release/go v0.0.0-20201103002846-7d0dfed55cc1
+	github.com/spacemeshos/explorer-backend v0.0.1
+	github.com/spacemeshos/go-spacemesh v0.1.20
+	github.com/urfave/cli v1.22.4
 	go.mongodb.org/mongo-driver v1.4.1
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0 // indirect
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
-	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
-	google.golang.org/genproto v0.0.0-20200918140846-d0d605568037
+	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e
 	google.golang.org/grpc v1.32.0
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

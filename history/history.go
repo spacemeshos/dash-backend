@@ -105,6 +105,10 @@ func (h *History) pushStatistics() {
         message.LastLayerTimestamp = networkInfo.LastLayerTimestamp
         message.LastApprovedLayer = networkInfo.LastApprovedLayer
         message.LastConfirmedLayer = networkInfo.LastConfirmedLayer
+        message.IsSynced = networkInfo.IsSynced
+        message.SyncedLayer = networkInfo.SyncedLayer
+        message.TopLayer = networkInfo.TopLayer
+        message.VerifiedLayer = networkInfo.VerifiedLayer
     } else {
         message.Network = h.storage.NetworkInfo.NetId
         message.Age = now - h.storage.NetworkInfo.GenesisTime

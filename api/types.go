@@ -27,6 +27,11 @@ type Message struct {
     LastLayerTimestamp	uint32 `json:"lastlayerts"`
     LastApprovedLayer	uint32 `json:"lastapprovedlayer"`
     LastConfirmedLayer	uint32 `json:"lastconfirmedlayer"`
+    IsSynced		bool   `json:"issynced"`
+    SyncedLayer		uint32 `json:"syncedlayer"`
+    TopLayer		uint32 `json:"toplayer"`
+    VerifiedLayer	uint32 `json:"verifiedlayer"`
+
     Capacity		int64 `json:"capacity"`
     Decentral		int64 `json:"decentral"`
     SmeshersGeo		[]types.Geo        `json:"smeshersGeo"`
