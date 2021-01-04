@@ -78,6 +78,10 @@ func (h *History) Run() {
     }
 }
 
+func (h *History) GetStorage() *storage.Storage {
+    return h.storage
+}
+
 func getObject(d *bson.D, name string) *bson.E {
     for _, obj := range *d {
         if obj.Key == name {

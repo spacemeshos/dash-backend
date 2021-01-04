@@ -1,7 +1,9 @@
 package main
 
 import (
+    "context"
     "fmt"
+    "io"
     "net/http"
     "math/rand"
     "os"
@@ -51,7 +53,6 @@ var flags = []cli.Flag{
     },
 }
 
-
 func main() {
     app := cli.NewApp()
     app.Name = "Spacemesh Dashboard API Server"
@@ -88,6 +89,20 @@ func main() {
 
         http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
             client.ServeWs(bus, w, r)
+        })
+
+        http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+            w.Header().Set("Content-Type", "text/plain")
+            w.Header().Set("Access-Control-Allow-Origin", "*")
+
+            networkInfo, err := history.GetStorage().GetNetworkInfo(context.Background())
+            if err == nil && networkInfo.IsSynced {
+                w.WriteHeader(http.StatusOK)
+                io.WriteString(w, "SYNCED")
+            } else {
+                w.WriteHeader(http.StatusTooEarly)
+                io.WriteString(w, "SYNCING")
+            }
         })
 
         err = http.ListenAndServe(listenStringFlag, nil)
