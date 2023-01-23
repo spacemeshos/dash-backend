@@ -2,8 +2,7 @@ package history
 
 import (
 	"context"
-	//    "errors"
-	"fmt"
+
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -166,8 +165,6 @@ func (h *History) pushStatistics() {
 			i--
 		}
 	}
-
-	fmt.Print(message, "\n")
 
 	h.bus.Notify <- message.ToJson()
 }
