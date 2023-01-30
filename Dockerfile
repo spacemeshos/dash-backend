@@ -6,5 +6,5 @@ RUN go build
 
 FROM alpine:3.17
 COPY --from=build /src/dash-backend /bin/
-EXPOSE 8080
+EXPOSE 5000
 ENTRYPOINT ["/bin/dash-backend"]
