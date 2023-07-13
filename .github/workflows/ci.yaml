@@ -28,4 +28,4 @@ jobs:
           repository: spacemeshos/dash-backend
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta_apiserver.outputs.tags }}
+          tags: ${{ steps.meta_dash.outputs.tags }}
