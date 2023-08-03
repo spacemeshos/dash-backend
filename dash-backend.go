@@ -82,7 +82,7 @@ func main() {
 
 		history, err := history.NewHistory(nil, bus, mongoDbUrlStringFlag, mongoDbNameStringFlag)
 		if err != nil {
-			log.Error("Create History service error: %v", err)
+			log.Err(fmt.Errorf("Create History service error: %v", err))
 			return err
 		}
 		go history.Run()
@@ -107,7 +107,7 @@ func main() {
 
 		err = http.ListenAndServe(listenStringFlag, nil)
 		if err != nil {
-			log.Error("Create HTTP ssrver error: %v", err)
+			log.Err(fmt.Errorf("Create HTTP ssrver error: %v", err))
 			return err
 		}
 
