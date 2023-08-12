@@ -159,7 +159,7 @@ func (h *History) pushStatistics() {
 			message.Rewards[i].Amt = epoch.Stats.Cumulative.Rewards
 			message.Rewards[i].Epoch = epoch.Number
 			message.Rewards[i].Age = age
-			message.Security[i].Amt = epoch.Stats.Cumulative.Security
+			message.Security[i].Amt = epoch.Stats.Current.Security
 			message.Security[i].Epoch = epoch.Number
 			message.Security[i].Age = age
 			i--
