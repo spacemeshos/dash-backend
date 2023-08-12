@@ -138,8 +138,8 @@ func (h *History) pushStatistics() {
 	epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetLimit(api.PointsCount).SetProjection(bson.D{{"_id", 0}}))
 
 	if err == nil && len(epochs) > 0 {
-		message.Capacity = epochs[0].Stats.Cumulative.Capacity
-		message.Decentral = epochs[0].Stats.Cumulative.Decentral
+		message.Capacity = epochs[0].Stats.Current.Capacity
+		message.Decentral = epochs[0].Stats.Current.Decentral
 		i = api.PointsCount - 1
 		for _, epoch := range epochs {
 			log.Info("History: stats for epoch %v: %v", epoch.Number, epoch.Stats)
