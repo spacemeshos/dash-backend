@@ -144,19 +144,19 @@ func (h *History) pushStatistics() {
 		for _, epoch := range epochs {
 			log.Info("History: stats for epoch %v: %v", epoch.Number, epoch.Stats)
 			age := now - epoch.Start
-			message.Smeshers[i].Amt = epoch.Stats.Cumulative.Smeshers
+			message.Smeshers[i].Amt = epoch.Stats.Current.Smeshers
 			message.Smeshers[i].Epoch = epoch.Number
 			message.Smeshers[i].Age = age
-			message.Transactions[i].Amt = epoch.Stats.Cumulative.Transactions
+			message.Transactions[i].Amt = epoch.Stats.Current.Transactions
 			message.Transactions[i].Epoch = epoch.Number
 			message.Transactions[i].Age = age
-			message.Accounts[i].Amt = epoch.Stats.Cumulative.Accounts
+			message.Accounts[i].Amt = epoch.Stats.Current.Accounts
 			message.Accounts[i].Epoch = epoch.Number
 			message.Accounts[i].Age = age
-			message.Circulation[i].Amt = epoch.Stats.Cumulative.Circulation
+			message.Circulation[i].Amt = epoch.Stats.Current.Circulation
 			message.Circulation[i].Epoch = epoch.Number
 			message.Circulation[i].Age = age
-			message.Rewards[i].Amt = epoch.Stats.Cumulative.Rewards
+			message.Rewards[i].Amt = epoch.Stats.Current.Rewards
 			message.Rewards[i].Epoch = epoch.Number
 			message.Rewards[i].Age = age
 			message.Security[i].Amt = epoch.Stats.Current.Security
