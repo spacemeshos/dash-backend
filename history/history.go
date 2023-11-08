@@ -135,7 +135,6 @@ func (h *History) pushStatistics() {
 	message.Layer = h.storage.GetLastLayer(h.ctx)
 	message.Epoch = message.Layer / h.storage.NetworkInfo.EpochNumLayers
 
-	circulation, _ := h.storage.GetCirculation(h.ctx)
 	epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetLimit(api.PointsCount).SetProjection(bson.D{{"_id", 0}}))
 
 	if err == nil && len(epochs) > 0 {
@@ -154,7 +153,7 @@ func (h *History) pushStatistics() {
 			message.Accounts[i].Amt = epoch.Stats.Current.Accounts
 			message.Accounts[i].Epoch = epoch.Number
 			message.Accounts[i].Age = age
-			message.Circulation[i].Amt = circulation
+			message.Circulation[i].Amt = epoch.Stats.Current.Rewards
 			message.Circulation[i].Epoch = epoch.Number
 			message.Circulation[i].Age = age
 			message.Rewards[i].Amt = epoch.Stats.Current.Rewards
