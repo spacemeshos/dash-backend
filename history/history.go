@@ -135,7 +135,7 @@ func (h *History) pushStatistics() {
 	message.Layer = h.storage.GetLastLayer(h.ctx)
 	message.Epoch = message.Layer / h.storage.NetworkInfo.EpochNumLayers
 
-	epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetLimit(api.PointsCount).SetProjection(bson.D{{"_id", 0}}))
+	epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetSkip(1).SetLimit(api.PointsCount).SetProjection(bson.D{{"_id", 0}}))
 
 	if err == nil && len(epochs) > 0 {
 		message.Capacity = epochs[0].Stats.Current.Capacity
