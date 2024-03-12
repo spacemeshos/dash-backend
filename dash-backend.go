@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/spacemeshos/dash-backend/utils"
 	"io"
 	"math/rand"
 	"net/http"
@@ -103,6 +104,18 @@ func main() {
 				w.WriteHeader(http.StatusTooEarly)
 				io.WriteString(w, "SYNCING")
 			}
+		})
+
+		http.HandleFunc("/circulating", func(w http.ResponseWriter, r *http.Request) {
+			stats := history.GetStats()
+			var circulation int64 = 0
+			for _, val := range stats.Circulation {
+				circulation += val.Amt
+			}
+			c := utils.ParseSmidge(float64(circulation))
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(c.Value))
 		})
 
 		err = http.ListenAndServe(listenStringFlag, nil)
