@@ -91,6 +91,15 @@ func getObject(d *bson.D, name string) *bson.E {
 }
 
 func (h *History) pushStatistics() {
+	message := h.GetStats()
+	h.bus.Notify <- message.ToJson()
+}
+
+func (h *History) push(m *api.Message) {
+	h.bus.Notify <- m.ToJson()
+}
+
+func (h *History) GetStats() *api.Message {
 	var i int
 
 	now := uint32(time.Now().Unix())
@@ -166,9 +175,5 @@ func (h *History) pushStatistics() {
 		}
 	}
 
-	h.bus.Notify <- message.ToJson()
-}
-
-func (h *History) push(m *api.Message) {
-	h.bus.Notify <- m.ToJson()
+	return message
 }
