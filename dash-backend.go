@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/spacemeshos/dash-backend/utils"
+	"github.com/spacemeshos/economics/vesting"
 	"io"
 	"math/rand"
 	"net/http"
@@ -107,11 +108,20 @@ func main() {
 		})
 
 		http.HandleFunc("/circulating", func(w http.ResponseWriter, r *http.Request) {
-			stats := history.GetStats()
-			var circulation int64 = 0
-			for _, val := range stats.Circulation {
-				circulation += val.Amt
+			networkInfo, err := history.GetStorage().GetNetworkInfo(context.Background())
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
+
+			accumulatedVest := vesting.AccumulatedVestAtLayer(networkInfo.TopLayer)
+			sum, err := history.GetStorage().GetRewardsTotalSum(context.Background())
+			if err != nil {
+				log.Warning("GetRewardsTotalSum error: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			var circulation = int64(accumulatedVest) + sum
 			c := utils.ParseSmidge(float64(circulation))
 
 			w.WriteHeader(http.StatusOK)
