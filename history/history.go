@@ -26,6 +26,8 @@ type History struct {
 
 	bus     *client.Bus
 	storage *storage.Storage
+
+	currentStats *api.Message
 }
 
 func NewHistory(ctx context.Context, bus *client.Bus, dbUrl string, dbName string) (*History, error) {
@@ -106,6 +108,9 @@ func (h *History) GetStats() *api.Message {
 
 	now := uint32(time.Now().Unix())
 	message := &api.Message{}
+	if h.currentStats != nil {
+		message = h.currentStats
+	}
 
 	networkInfo, err := h.storage.GetNetworkInfo(h.ctx)
 	if err == nil {
@@ -146,15 +151,23 @@ func (h *History) GetStats() *api.Message {
 	message.Layer = h.storage.GetLastLayer(h.ctx)
 	message.Epoch = message.Layer / h.storage.NetworkInfo.EpochNumLayers
 
-	epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetSkip(1).SetLimit(api.PointsCount).SetProjection(bson.D{{"_id", 0}}))
+	limit := int64(api.PointsCount)
+	if h.currentStats != nil {
+		limit = 2
+	}
+	epochs, err := h.storage.GetEpochsData(h.ctx, &bson.D{}, options.Find().SetSort(bson.D{{"number", -1}}).SetSkip(1).SetLimit(limit).SetProjection(bson.D{{"_id", 0}}))
 
 	if err == nil && len(epochs) > 0 {
 		message.Capacity = epochs[0].Stats.Current.Capacity
 		message.Decentral = epochs[0].Stats.Current.Decentral
 		i = api.PointsCount - 1
+
 		for _, epoch := range epochs {
 			log.Info("History: stats for epoch %v: %v", epoch.Number, epoch.Stats)
 			age := now - epoch.Start
+			epoch.Stats.Current.Smeshers = 0
+			epoch.Stats.Current.Security = 0
+			epoch.Stats.Current.Decentral = 0
 			atxs, _ := h.storage.GetActivations(context.Background(), &bson.D{{Key: "targetEpoch", Value: epoch.Number}})
 			if atxs != nil {
 				smeshers := make(map[string]int64)
@@ -207,5 +220,6 @@ func (h *History) GetStats() *api.Message {
 		}
 	}
 
+	h.currentStats = message
 	return message
 }
