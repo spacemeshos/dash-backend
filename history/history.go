@@ -2,6 +2,8 @@ package history
 
 import (
 	"context"
+	"github.com/spacemeshos/explorer-backend/utils"
+	"math"
 
 	"time"
 
@@ -63,7 +65,7 @@ func NewHistory(ctx context.Context, bus *client.Bus, dbUrl string, dbName strin
 }
 
 func (h *History) Run() {
-	period := time.Duration(h.storage.NetworkInfo.LayerDuration) * time.Second / 2
+	period := time.Duration(h.storage.NetworkInfo.LayerDuration) * time.Second
 	if period > time.Minute {
 		period = time.Minute
 	}
@@ -153,6 +155,36 @@ func (h *History) GetStats() *api.Message {
 		for _, epoch := range epochs {
 			log.Info("History: stats for epoch %v: %v", epoch.Number, epoch.Stats)
 			age := now - epoch.Start
+			atxs, _ := h.storage.GetActivations(context.Background(), &bson.D{{Key: "targetEpoch", Value: epoch.Number}})
+			if atxs != nil {
+				smeshers := make(map[string]int64)
+				for _, atx := range atxs {
+					var commitmentSize int64
+					var smesher string
+					for _, e := range atx {
+						if e.Key == "smesher" {
+							smesher, _ = e.Value.(string)
+							continue
+						}
+						if e.Key == "commitmentSize" {
+							if value, ok := e.Value.(int64); ok {
+								commitmentSize = value
+							} else if value, ok := e.Value.(int32); ok {
+								commitmentSize = int64(value)
+							}
+						}
+					}
+					if smesher != "" {
+						smeshers[smesher] += commitmentSize
+						epoch.Stats.Current.Security += commitmentSize
+					}
+				}
+				epoch.Stats.Current.Smeshers = int64(len(smeshers))
+				// degree_of_decentralization is defined as: 0.5 * (min(n,1e4)^2/1e8) + 0.5 * (1 - gini_coeff(last_100_epochs))
+				a := math.Min(float64(epoch.Stats.Current.Smeshers), 1e4)
+				// todo replace to utils.CalcDecentralCoefficient
+				epoch.Stats.Current.Decentral = int64(100.0 * (0.5*(a*a)/1e8 + 0.5*(1.0-utils.Gini(smeshers))))
+			}
 			message.Smeshers[i].Amt = epoch.Stats.Current.Smeshers
 			message.Smeshers[i].Epoch = epoch.Number
 			message.Smeshers[i].Age = age
